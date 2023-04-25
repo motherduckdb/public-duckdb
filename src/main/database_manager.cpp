@@ -94,4 +94,14 @@ Catalog &DatabaseManager::GetSystemCatalog() {
 	return system->GetCatalog();
 }
 
+bool DatabaseManager::SetDefaultDatabase(ClientContext &context, const string &database) {
+	auto entry = databases->GetEntry(context, database);
+	if (entry == nullptr) {
+		return false; // Database is not attach, don't change default
+	}
+
+	default_database = database;
+	return true;
+}
+
 } // namespace duckdb
