@@ -674,7 +674,7 @@ void RadixHTLocalSourceState::Finalize(RadixHTGlobalSinkState &sink, RadixHTGlob
 	}
 
 	if (!ht) {
-		// Create a HT with sufficient capacity
+		// This capacity would always be sufficient for all data
 		const auto capacity = GroupedAggregateHashTable::GetCapacityForCount(partition.data->Count());
 
 		// However, we will limit the initial capacity so we don't do a huge over-allocation
