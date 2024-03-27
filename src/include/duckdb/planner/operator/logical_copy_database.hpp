@@ -30,6 +30,9 @@ public:
 
 protected:
 	void ResolveTypes() override;
+
+private:
+	explicit LogicalCopyDatabase(unique_ptr<ParseInfo> info_p);
 };
 
 } // namespace duckdb
