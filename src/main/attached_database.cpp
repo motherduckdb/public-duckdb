@@ -138,4 +138,8 @@ void AttachedDatabase::SetInitialDatabase() {
 	is_initial_database = true;
 }
 
+void AttachedDatabase::SetReadonly() {
+	type = AttachedDatabaseType::READ_ONLY_DATABASE;
+}
+
 } // namespace duckdb
