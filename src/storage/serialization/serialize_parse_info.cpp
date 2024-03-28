@@ -236,13 +236,13 @@ unique_ptr<AlterTableInfo> ChangeColumnTypeInfo::Deserialize(Deserializer &deser
 void CopyDatabaseInfo::Serialize(Serializer &serializer) const {
 	ParseInfo::Serialize(serializer);
 	serializer.WritePropertyWithDefault<string>(200, "target_database", target_database);
-	serializer.WritePropertyWithDefault<vector<unique_ptr<CreateInfo>>>(205, "entries", entries);
+	serializer.WritePropertyWithDefault<vector<unique_ptr<CreateInfo>>>(201, "entries", entries);
 }
 
 unique_ptr<ParseInfo> CopyDatabaseInfo::Deserialize(Deserializer &deserializer) {
 	auto result = duckdb::unique_ptr<CopyDatabaseInfo>(new CopyDatabaseInfo());
 	deserializer.ReadPropertyWithDefault<string>(200, "target_database", result->target_database);
-	deserializer.ReadPropertyWithDefault<vector<unique_ptr<CreateInfo>>>(205, "entries", result->entries);
+	deserializer.ReadPropertyWithDefault<vector<unique_ptr<CreateInfo>>>(201, "entries", result->entries);
 	return std::move(result);
 }
 
