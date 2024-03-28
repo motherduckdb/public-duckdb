@@ -1,12 +1,8 @@
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/parser/statement/copy_database_statement.hpp"
 #include "duckdb/catalog/catalog_entry/list.hpp"
-#include "duckdb/parser/parsed_data/create_macro_info.hpp"
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
-#include "duckdb/parser/parsed_data/create_sequence_info.hpp"
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
-#include "duckdb/parser/parsed_data/create_type_info.hpp"
-#include "duckdb/parser/parsed_data/create_view_info.hpp"
 #include "duckdb/planner/operator/logical_copy_database.hpp"
 #include "duckdb/execution/operator/persistent/physical_export.hpp"
 #include "duckdb/planner/operator/logical_create_table.hpp"
@@ -22,7 +18,8 @@
 
 namespace duckdb {
 
-unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catalog, const std::string &target_database_name) {
+unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catalog,
+                                                           const std::string &target_database_name) {
 	auto source_schemas = source_catalog.GetSchemas(context);
 
 	ExportEntries entries;
@@ -100,7 +97,8 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catal
 	return make_uniq<LogicalCopyDatabase>(std::move(info));
 }
 
-unique_ptr<LogicalOperator> Binder::BindCopyDatabaseData(Catalog &source_catalog, const std::string &target_database_name) {
+unique_ptr<LogicalOperator> Binder::BindCopyDatabaseData(Catalog &source_catalog,
+                                                         const std::string &target_database_name) {
 	auto source_schemas = source_catalog.GetSchemas(context);
 
 	ExportEntries entries;
