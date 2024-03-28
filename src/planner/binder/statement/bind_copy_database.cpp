@@ -22,13 +22,13 @@
 
 namespace duckdb {
 
-unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catalog, const std::string &to_database) {
+unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catalog, const std::string &target_database_name) {
 	auto source_schemas = source_catalog.GetSchemas(context);
 
 	ExportEntries entries;
 	PhysicalExport::ExtractEntries(context, source_schemas, entries);
 
-	auto info = make_uniq<CopyDatabaseInfo>(to_database);
+	auto info = make_uniq<CopyDatabaseInfo>(target_database_name);
 
 	// get a list of all schemas to copy over
 	for (auto &schema_ref : source_schemas) {
@@ -37,7 +37,7 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catal
 			continue;
 		}
 		auto create_info = schema.GetInfo();
-		create_info->catalog = to_database;
+		create_info->catalog = target_database_name;
 		create_info->on_conflict = OnCreateConflict::IGNORE_ON_CONFLICT;
 		info->entries.push_back(std::move(create_info));
 	}
@@ -48,7 +48,7 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catal
 			continue;
 		}
 		auto create_info = seq_entry.GetInfo();
-		create_info->catalog = to_database;
+		create_info->catalog = target_database_name;
 		create_info->on_conflict = OnCreateConflict::ERROR_ON_CONFLICT;
 		info->entries.push_back(std::move(create_info));
 	}
@@ -59,7 +59,7 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catal
 			continue;
 		}
 		auto create_info = type_entry.GetInfo();
-		create_info->catalog = to_database;
+		create_info->catalog = target_database_name;
 		create_info->on_conflict = OnCreateConflict::ERROR_ON_CONFLICT;
 		info->entries.push_back(std::move(create_info));
 	}
@@ -70,7 +70,7 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catal
 			continue;
 		}
 		auto create_info = table.GetInfo();
-		create_info->catalog = to_database;
+		create_info->catalog = target_database_name;
 		create_info->on_conflict = OnCreateConflict::ERROR_ON_CONFLICT;
 		info->entries.push_back(std::move(create_info));
 	}
@@ -80,7 +80,7 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catal
 			continue;
 		}
 		auto create_info = macro.GetInfo();
-		create_info->catalog = to_database;
+		create_info->catalog = target_database_name;
 		create_info->on_conflict = OnCreateConflict::ERROR_ON_CONFLICT;
 		info->entries.push_back(std::move(create_info));
 	}
@@ -91,7 +91,7 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catal
 			continue;
 		}
 		auto create_info = view.GetInfo();
-		create_info->catalog = to_database;
+		create_info->catalog = target_database_name;
 		create_info->on_conflict = OnCreateConflict::ERROR_ON_CONFLICT;
 		info->entries.push_back(std::move(create_info));
 	}
@@ -100,7 +100,7 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseSchema(Catalog &source_catal
 	return make_uniq<LogicalCopyDatabase>(std::move(info));
 }
 
-unique_ptr<LogicalOperator> Binder::BindCopyDatabaseData(Catalog &source_catalog, const std::string &to_database) {
+unique_ptr<LogicalOperator> Binder::BindCopyDatabaseData(Catalog &source_catalog, const std::string &target_database_name) {
 	auto source_schemas = source_catalog.GetSchemas(context);
 
 	ExportEntries entries;
@@ -111,7 +111,7 @@ unique_ptr<LogicalOperator> Binder::BindCopyDatabaseData(Catalog &source_catalog
 		auto &table = table_ref.get();
 		// generate the insert statement
 		InsertStatement insert_stmt;
-		insert_stmt.catalog = to_database;
+		insert_stmt.catalog = target_database_name;
 		insert_stmt.schema = table.ParentSchema().name;
 		insert_stmt.table = table.name;
 
@@ -157,10 +157,9 @@ BoundStatement Binder::Bind(CopyDatabaseStatement &stmt) {
 	BoundStatement result;
 
 	unique_ptr<LogicalOperator> plan;
-	// BindCatalog
 	auto &source_catalog = Catalog::GetCatalog(context, stmt.from_database);
-	auto &to_database = Catalog::GetCatalog(context, stmt.to_database);
-	if (&source_catalog == &to_database) {
+	auto &target_catalog = Catalog::GetCatalog(context, stmt.to_database);
+	if (&source_catalog == &target_catalog) {
 		throw BinderException("Cannot copy from \"%s\" to \"%s\" - FROM and TO databases are the same",
 		                      stmt.from_database, stmt.to_database);
 	}
@@ -168,18 +167,18 @@ BoundStatement Binder::Bind(CopyDatabaseStatement &stmt) {
 		result.types = {LogicalType::BOOLEAN};
 		result.names = {"Success"};
 
-		plan = BindCopyDatabaseSchema(source_catalog, to_database.GetName());
+		plan = BindCopyDatabaseSchema(source_catalog, target_catalog.GetName());
 	} else {
 		result.types = {LogicalType::BIGINT};
 		result.names = {"Count"};
 
-		plan = BindCopyDatabaseData(source_catalog, to_database.GetName());
+		plan = BindCopyDatabaseData(source_catalog, target_catalog.GetName());
 	}
 
 	result.plan = std::move(plan);
 	properties.allow_stream_result = false;
 	properties.return_type = StatementReturnType::NOTHING;
-	properties.modified_databases.insert(to_database.GetName());
+	properties.modified_databases.insert(target_catalog.GetName());
 	return result;
 }
 

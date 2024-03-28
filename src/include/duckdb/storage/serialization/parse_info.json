@@ -348,7 +348,7 @@
     "members": [
       {
         "id": 200,
-        "name": "to_database",
+        "name": "target_database",
         "type": "string"
       },
       {

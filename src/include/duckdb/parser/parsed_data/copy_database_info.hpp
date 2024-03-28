@@ -19,15 +19,15 @@ public:
 	static constexpr const ParseInfoType TYPE = ParseInfoType::COPY_DATABASE_INFO;
 
 public:
-	explicit CopyDatabaseInfo() : ParseInfo(TYPE), to_database(INVALID_CATALOG) {
+	explicit CopyDatabaseInfo() : ParseInfo(TYPE), target_database(INVALID_CATALOG) {
 	}
 
-	explicit CopyDatabaseInfo(const std::string &to_database)
-	: ParseInfo(TYPE), to_database(to_database) {
+	explicit CopyDatabaseInfo(const std::string &target_database)
+	: ParseInfo(TYPE), target_database(target_database) {
 	}
 
 	// The destination database to which catalog entries are being copied
-	std::string to_database;
+	std::string target_database;
 
 	// The catalog entries that are going to be created in the destination DB
 	vector<unique_ptr<CreateInfo>> entries;
