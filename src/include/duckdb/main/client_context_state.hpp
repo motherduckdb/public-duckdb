@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/enums/prepared_statement_mode.hpp"
+#include "duckdb/common/optional_ptr.hpp"
 
 namespace duckdb {
 class ClientContext;
@@ -49,7 +51,8 @@ public:
 		return RebindQueryInfo::DO_NOT_REBIND;
 	}
 	virtual RebindQueryInfo OnExecutePrepared(ClientContext &context, PreparedStatementData &prepared_statement,
-	                                          RebindQueryInfo current_rebind) {
+	                                          RebindQueryInfo current_rebind,
+	                                          optional_ptr<case_insensitive_map_t<Value>> parameters) {
 		return RebindQueryInfo::DO_NOT_REBIND;
 	}
 };

@@ -128,7 +128,8 @@ struct DebugClientContextState : public ClientContextState {
 		return RebindQueryInfo::DO_NOT_REBIND;
 	}
 	RebindQueryInfo OnExecutePrepared(ClientContext &context, PreparedStatementData &prepared_statement,
-	                                  RebindQueryInfo current_rebind) override {
+	                                  RebindQueryInfo current_rebind,
+	                                  optional_ptr<case_insensitive_map_t<Value>> parameters) override {
 		return RebindQueryInfo::ATTEMPT_TO_REBIND;
 	}
 #endif
@@ -520,7 +521,7 @@ unique_ptr<PendingQueryResult> ClientContext::PendingPreparedStatement(ClientCon
 		rebind = RebindQueryInfo::ATTEMPT_TO_REBIND;
 	}
 	for (auto const &s : registered_state) {
-		auto new_rebind = s.second->OnExecutePrepared(*this, *prepared, rebind);
+		auto new_rebind = s.second->OnExecutePrepared(*this, *prepared, rebind, parameters.parameters);
 		if (new_rebind == RebindQueryInfo::ATTEMPT_TO_REBIND) {
 			rebind = RebindQueryInfo::ATTEMPT_TO_REBIND;
 		}
