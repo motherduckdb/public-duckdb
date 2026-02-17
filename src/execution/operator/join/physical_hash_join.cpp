@@ -902,14 +902,8 @@ void JoinFilterPushdownInfo::PushInFilter(const JoinFilterPushdownFilter &info, 
 }
 
 bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, optional_ptr<JoinHashTable> ht,
-                                               const PhysicalComparisonJoin &op, const ExpressionType &cmp,
-                                               const bool is_perfect_hashtable) const {
+                                               const PhysicalComparisonJoin &op, const ExpressionType &cmp) const {
 	if (!ht) {
-		return false;
-	}
-
-	// with a perfect hashtable we expect good min/max pruning, so we don't want the bloom filter
-	if (is_perfect_hashtable) {
 		return false;
 	}
 
@@ -928,13 +922,18 @@ bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, opt
 }
 
 void JoinFilterPushdownInfo::PushBloomFilter(const JoinFilterPushdownFilter &info, JoinHashTable &ht,
-                                             const PhysicalOperator &op, idx_t filter_col_idx) const {
+                                             const PhysicalOperator &op, idx_t filter_col_idx,
+                                             optional_ptr<PerfectHashJoinExecutor> perfect_join_executor) const {
 	// If the nulls are equal, we let nulls pass. If not, we filter them
 	auto filters_null_values = !ht.NullValuesAreEqual(0);
 	const auto key_name = ht.conditions[0].GetRHS().ToString();
 	const auto key_type = ht.conditions[0].GetLHS().return_type;
 	auto bf_filter = make_uniq<BFTableFilter>(ht.GetBloomFilter(), filters_null_values, key_name, key_type);
-	ht.SetBuildBloomFilter(true);
+	if (perfect_join_executor) {
+		perfect_join_executor->BuildBloomFilter(ht.GetBloomFilter());
+	} else {
+		ht.SetBuildBloomFilter(true);
+	}
 
 	auto opt_bf_filter = make_uniq<SelectivityOptionalFilter>(
 	    std::move(bf_filter), SelectivityOptionalFilter::BF_THRESHOLD, SelectivityOptionalFilter::BF_CHECK_N);
@@ -954,10 +953,10 @@ unique_ptr<DataChunk> JoinFilterPushdownInfo::FinalizeMinMax(JoinFilterGlobalSta
 	return final_min_max;
 }
 
-unique_ptr<DataChunk> JoinFilterPushdownInfo::FinalizeFilters(ClientContext &context, optional_ptr<JoinHashTable> ht,
-                                                              const PhysicalComparisonJoin &op,
-                                                              unique_ptr<DataChunk> final_min_max,
-                                                              const bool is_perfect_hashtable) const {
+unique_ptr<DataChunk>
+JoinFilterPushdownInfo::FinalizeFilters(ClientContext &context, const PhysicalComparisonJoin &op,
+                                        unique_ptr<DataChunk> final_min_max, optional_ptr<JoinHashTable> ht,
+                                        optional_ptr<PerfectHashJoinExecutor> perfect_join_executor) const {
 	if (probe_info.empty()) {
 		return final_min_max; // There are not table souces in which we can push down filters
 	}
@@ -1025,8 +1024,8 @@ unique_ptr<DataChunk> JoinFilterPushdownInfo::FinalizeFilters(ClientContext &con
 					break;
 				}
 
-				if (ht && CanUseBloomFilter(context, ht, op, cmp, is_perfect_hashtable)) {
-					PushBloomFilter(info, *ht, op, filter_col_idx);
+				if (ht && CanUseBloomFilter(context, ht, op, cmp)) {
+					PushBloomFilter(info, *ht, op, filter_col_idx, perfect_join_executor);
 				}
 			}
 		}
@@ -1034,11 +1033,12 @@ unique_ptr<DataChunk> JoinFilterPushdownInfo::FinalizeFilters(ClientContext &con
 	return final_min_max;
 }
 
-unique_ptr<DataChunk> JoinFilterPushdownInfo::Finalize(ClientContext &context, optional_ptr<JoinHashTable> ht,
-                                                       JoinFilterGlobalState &gstate,
-                                                       const PhysicalComparisonJoin &op) const {
+unique_ptr<DataChunk>
+JoinFilterPushdownInfo::Finalize(ClientContext &context, JoinFilterGlobalState &gstate,
+                                 const PhysicalComparisonJoin &op, optional_ptr<JoinHashTable> ht,
+                                 optional_ptr<PerfectHashJoinExecutor> perfect_hash_join_executor) const {
 	auto final_min_max = FinalizeMinMax(gstate);
-	return FinalizeFilters(context, ht, op, std::move(final_min_max), false);
+	return FinalizeFilters(context, op, std::move(final_min_max), ht, perfect_hash_join_executor);
 }
 
 SinkFinalizeType PhysicalHashJoin::Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
@@ -1130,15 +1130,16 @@ SinkFinalizeType PhysicalHashJoin::Finalize(Pipeline &pipeline, Event &event, Cl
 		D_ASSERT(ht.equality_types.size() == 1);
 		auto key_type = ht.equality_types[0];
 		use_perfect_hash = sink.perfect_join_executor->BuildPerfectHashTable(key_type);
+	} else {
+		sink.perfect_join_executor.reset();
 	}
 
 	if (filter_min_max) {
-		filter_pushdown->FinalizeFilters(context, &ht, *this, std::move(filter_min_max), use_perfect_hash);
+		filter_pushdown->FinalizeFilters(context, *this, std::move(filter_min_max), &ht, sink.perfect_join_executor);
 	}
 
 	// In case of a large build side or duplicates, use regular hash join
 	if (!use_perfect_hash) {
-		sink.perfect_join_executor.reset();
 		sink.ScheduleFinalize(pipeline, event);
 	}
 	sink.finalized = true;

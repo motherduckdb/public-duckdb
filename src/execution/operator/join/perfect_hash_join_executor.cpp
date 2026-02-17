@@ -144,6 +144,23 @@ bool PerfectHashJoinExecutor::BuildPerfectHashTable(LogicalType &key_type) {
 	return FullScanHashTable(key_type);
 }
 
+void PerfectHashJoinExecutor::BuildBloomFilter(BloomFilter &bloom_filter) {
+	auto &data_collection = ht.GetDataCollection();
+
+	bloom_filter.Initialize(ht.context, data_collection.Count());
+
+	TupleDataScanState scan_state;
+	data_collection.InitializeScan(scan_state, {data_collection.GetLayout().ColumnCount() - 1},
+	                               TupleDataPinProperties::ALREADY_PINNED);
+
+	DataChunk scan_chunk;
+	data_collection.InitializeScanChunk(scan_state, scan_chunk);
+
+	while (data_collection.Scan(scan_state, scan_chunk)) {
+		bloom_filter.InsertHashes(scan_chunk.data[0], scan_chunk.size());
+	}
+}
+
 bool PerfectHashJoinExecutor::FullScanHashTable(LogicalType &key_type) {
 	auto &data_collection = ht.GetDataCollection();
 

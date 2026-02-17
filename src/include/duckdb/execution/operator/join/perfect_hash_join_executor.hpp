@@ -18,6 +18,7 @@ namespace duckdb {
 class HashJoinOperatorState;
 class HashJoinGlobalSinkState;
 class PhysicalHashJoin;
+class BloomFilter;
 
 struct PerfectHashJoinStats {
 	Value build_min;
@@ -41,6 +42,7 @@ public:
 	OperatorResultType ProbePerfectHashTable(ExecutionContext &context, DataChunk &input, DataChunk &lhs_output_columns,
 	                                         DataChunk &chunk, OperatorState &state);
 	bool BuildPerfectHashTable(LogicalType &type);
+	void BuildBloomFilter(BloomFilter &bloom_filter);
 
 private:
 	void FillSelectionVectorSwitchProbe(Vector &source, SelectionVector &build_sel_vec, SelectionVector &probe_sel_vec,
