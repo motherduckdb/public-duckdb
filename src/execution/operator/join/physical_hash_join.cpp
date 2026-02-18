@@ -913,13 +913,13 @@ bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, opt
 
 	// building the bloom filter is costly on the build to make probing faster, so only use it if there are
 	// more probing tuples than build tuples
-	static constexpr double BUILD_TO_PROBE_RATIO_THRESHOLD = 2.0;
+	static constexpr double BUILD_TO_PROBE_RATIO_THRESHOLD = 1.0;
 	const double build_to_probe_ratio =
 	    static_cast<double>(op.children[0].get().estimated_cardinality) / static_cast<double>(ht->Count());
 	const bool probe_larger_then_build = build_to_probe_ratio > BUILD_TO_PROBE_RATIO_THRESHOLD;
 
 	// only use bloom filter if there is no in-filter already
-	return can_use_bf && probe_larger_then_build;
+	return can_use_bf && build_side_has_filter && probe_larger_then_build;
 }
 
 void JoinFilterPushdownInfo::PushBloomFilter(const JoinFilterPushdownFilter &info, JoinHashTable &ht,
