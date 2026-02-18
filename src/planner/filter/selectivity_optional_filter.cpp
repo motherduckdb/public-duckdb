@@ -28,16 +28,20 @@ SelectivityOptionalFilterState::SelectivityStats::SelectivityStats(const idx_t n
 }
 
 void SelectivityOptionalFilterState::SelectivityStats::Update(idx_t accepted, idx_t processed) {
-	if (vectors_processed < n_vectors_to_check) {
-		tuples_accepted += accepted;
-		tuples_processed += processed;
-		vectors_processed += 1;
+	vectors_processed++;
+	tuples_accepted += accepted;
+	tuples_processed += processed;
 
+	if (vectors_processed == 60) {
+		// Reset every 60 vectors (number of vectors in a default row group)
+		vectors_processed = 0;
+		tuples_accepted = 0;
+		tuples_processed = 0;
+		status = FilterStatus::ACTIVE;
+	} else if (vectors_processed == n_vectors_to_check) {
 		// pause the filter if we processed enough vectors and the selectivity is too high
-		if (vectors_processed == n_vectors_to_check) {
-			if (GetSelectivity() >= selectivity_threshold) {
-				status = FilterStatus::PAUSED_DUE_TO_HIGH_SELECTIVITY;
-			}
+		if (GetSelectivity() >= selectivity_threshold) {
+			status = FilterStatus::PAUSED_DUE_TO_HIGH_SELECTIVITY;
 		}
 	}
 }
@@ -59,8 +63,6 @@ SelectivityOptionalFilter::SelectivityOptionalFilter(unique_ptr<TableFilter> fil
 }
 
 FilterPropagateResult SelectivityOptionalFilter::CheckStatistics(BaseStatistics &stats) const {
-	// TODO: A potential optimization would be to pause the filter for this row group if the stats return always true,
-	//		 but this needs to happen thread local, as other threads scan other row groups
 	return child_filter->CheckStatistics(stats);
 }
 
@@ -71,7 +73,7 @@ void SelectivityOptionalFilter::Serialize(Serializer &serializer) const {
 }
 
 unique_ptr<TableFilter> SelectivityOptionalFilter::Deserialize(Deserializer &deserializer) {
-	auto result = duckdb::unique_ptr<SelectivityOptionalFilter>(new SelectivityOptionalFilter(nullptr, 0.5f, 100));
+	auto result = unique_ptr<SelectivityOptionalFilter>(new SelectivityOptionalFilter(nullptr, 0.5f, 100));
 	deserializer.ReadPropertyWithDefault<unique_ptr<TableFilter>>(200, "child_filter", result->child_filter);
 	deserializer.ReadPropertyWithDefault<float>(201, "selectivity_threshold", result->selectivity_threshold);
 	deserializer.ReadPropertyWithDefault<idx_t>(202, "n_vectors_to_check", result->n_vectors_to_check);
@@ -94,21 +96,20 @@ idx_t SelectivityOptionalFilter::FilterSelection(SelectionVector &sel, Vector &v
                                                  TableFilterState &filter_state, const idx_t scan_count,
                                                  idx_t &approved_tuple_count) const {
 	auto &state = filter_state.Cast<SelectivityOptionalFilterState>();
-
 	if (state.stats.IsActive()) {
 		const idx_t approved_before = approved_tuple_count;
 		const idx_t accepted_count = ColumnSegment::FilterSelection(
 		    sel, vector, vdata, *child_filter, *state.child_state, scan_count, approved_tuple_count);
-
 		state.stats.Update(accepted_count, approved_before);
 		return accepted_count;
 	}
+	state.stats.Update(0, 0);
 	return scan_count;
 }
 
 unique_ptr<TableFilter> SelectivityOptionalFilter::Copy() const {
 	auto copy = make_uniq<SelectivityOptionalFilter>(child_filter->Copy(), selectivity_threshold, n_vectors_to_check);
-	return duckdb::unique_ptr_cast<SelectivityOptionalFilter, TableFilter>(std::move(copy));
+	return unique_ptr_cast<SelectivityOptionalFilter, TableFilter>(std::move(copy));
 }
 
 } // namespace duckdb

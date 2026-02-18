@@ -13,11 +13,7 @@
 namespace duckdb {
 
 struct SelectivityOptionalFilterState final : public TableFilterState {
-	enum class FilterStatus {
-		ACTIVE,
-		PAUSED_DUE_TO_ZONE_MAP_STATS, // todo: use this to disable the filter for one zone map based on CheckStatistics
-		PAUSED_DUE_TO_HIGH_SELECTIVITY
-	};
+	enum class FilterStatus { ACTIVE, PAUSED_DUE_TO_HIGH_SELECTIVITY };
 
 	struct SelectivityStats {
 		idx_t tuples_accepted;
@@ -47,10 +43,10 @@ struct SelectivityOptionalFilterState final : public TableFilterState {
 class SelectivityOptionalFilter final : public OptionalFilter {
 public:
 	static constexpr auto MIN_MAX_THRESHOLD = 0.75f;
-	static constexpr idx_t MIN_MAX_CHECK_N = 30;
+	static constexpr idx_t MIN_MAX_CHECK_N = 6;
 
 	static constexpr float BF_THRESHOLD = 0.25f;
-	static constexpr idx_t BF_CHECK_N = 75;
+	static constexpr idx_t BF_CHECK_N = 15;
 
 	float selectivity_threshold;
 	idx_t n_vectors_to_check;
