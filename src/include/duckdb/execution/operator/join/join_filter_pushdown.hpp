@@ -88,8 +88,8 @@ private:
 	                     idx_t filter_col_idx, optional_ptr<PerfectHashJoinExecutor> perfect_join_executor) const;
 
 	bool CanUseInFilter(const ClientContext &context, optional_ptr<JoinHashTable> ht, const ExpressionType &cmp) const;
-	bool CanUseBloomFilter(const ClientContext &context, optional_ptr<JoinHashTable> ht,
-	                       const PhysicalComparisonJoin &op, const ExpressionType &cmp) const;
+	bool CanUseBloomFilter(const ClientContext &context, const PhysicalComparisonJoin &op, const ExpressionType &cmp,
+	                       optional_ptr<JoinHashTable> ht = nullptr) const;
 };
 
 } // namespace duckdb

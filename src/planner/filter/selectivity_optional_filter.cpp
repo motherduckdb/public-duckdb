@@ -15,12 +15,6 @@
 
 namespace duckdb {
 
-constexpr float SelectivityOptionalFilter::MIN_MAX_THRESHOLD;
-constexpr idx_t SelectivityOptionalFilter::MIN_MAX_CHECK_N;
-
-constexpr float SelectivityOptionalFilter::BF_THRESHOLD;
-constexpr idx_t SelectivityOptionalFilter::BF_CHECK_N;
-
 SelectivityOptionalFilterState::SelectivityStats::SelectivityStats(const idx_t n_vectors_to_check,
                                                                    const float selectivity_threshold)
     : tuples_accepted(0), tuples_processed(0), vectors_processed(0), n_vectors_to_check(n_vectors_to_check),
@@ -32,13 +26,14 @@ void SelectivityOptionalFilterState::SelectivityStats::Update(idx_t accepted, id
 	tuples_accepted += accepted;
 	tuples_processed += processed;
 
-	if (vectors_processed == 60) {
+	static constexpr idx_t VECTORS_PER_ROW_GROUP = DEFAULT_ROW_GROUP_SIZE / DEFAULT_STANDARD_VECTOR_SIZE;
+	if (vectors_processed == VECTORS_PER_ROW_GROUP) {
 		// Reset every 60 vectors (number of vectors in a default row group)
 		vectors_processed = 0;
 		tuples_accepted = 0;
 		tuples_processed = 0;
 		status = FilterStatus::ACTIVE;
-	} else if (vectors_processed == n_vectors_to_check) {
+	} else if (vectors_processed >= n_vectors_to_check) {
 		// pause the filter if we processed enough vectors and the selectivity is too high
 		if (GetSelectivity() >= selectivity_threshold) {
 			status = FilterStatus::PAUSED_DUE_TO_HIGH_SELECTIVITY;
