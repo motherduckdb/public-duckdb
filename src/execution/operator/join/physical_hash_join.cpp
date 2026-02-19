@@ -919,7 +919,7 @@ bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, opt
 	const bool probe_larger_then_build = build_to_probe_ratio > BUILD_TO_PROBE_RATIO_THRESHOLD;
 
 	// only use bloom filter if there is no in-filter already
-	return can_use_bf && build_side_has_filter && probe_larger_then_build;
+	return can_use_bf && probe_larger_then_build;
 }
 
 void JoinFilterPushdownInfo::PushBloomFilter(const JoinFilterPushdownFilter &info, JoinHashTable &ht,

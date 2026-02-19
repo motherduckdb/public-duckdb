@@ -146,28 +146,6 @@ void JoinFilterPushdownOptimizer::GetPushdownFilterTargets(LogicalOperator &op,
 	}
 }
 
-bool JoinFilterPushdownOptimizer::IsFiltering(const unique_ptr<LogicalOperator> &op) {
-	switch (op->type) {
-	case LogicalOperatorType::LOGICAL_GET: {
-		auto &get = op->Cast<LogicalGet>();
-		return !get.table_filters.filters.empty();
-	}
-	case LogicalOperatorType::LOGICAL_FILTER: {
-		return true;
-	}
-	case LogicalOperatorType::LOGICAL_TOP_N: {
-		return true;
-	}
-	default:
-		for (const unique_ptr<LogicalOperator> &child : op->children) {
-			if (IsFiltering(child)) {
-				return true;
-			}
-		}
-		return false;
-	}
-}
-
 void JoinFilterPushdownOptimizer::GenerateJoinFilters(LogicalComparisonJoin &join) {
 	switch (join.join_type) {
 	case JoinType::MARK:
@@ -176,7 +154,6 @@ void JoinFilterPushdownOptimizer::GenerateJoinFilters(LogicalComparisonJoin &joi
 	case JoinType::OUTER:
 	case JoinType::ANTI:
 	case JoinType::RIGHT_ANTI:
-	case JoinType::RIGHT_SEMI:
 		// cannot generate join filters for these join types
 		// mark/single - cannot change cardinality of probe side
 		// left/outer always need to include every row from probe side
@@ -275,14 +252,6 @@ void JoinFilterPushdownOptimizer::GenerateJoinFilters(LogicalComparisonJoin &joi
 				return;
 			}
 			pushdown_info->min_max_aggregates.push_back(std::move(aggr_expr));
-		}
-	}
-	if (!pushdown_info->probe_info.empty()) {
-		const auto &rhs_child = join.children[1];
-		if (rhs_child->type == LogicalOperatorType::LOGICAL_DELIM_GET) {
-			pushdown_info->build_side_has_filter = IsFiltering(join.children[0]);
-		} else {
-			pushdown_info->build_side_has_filter = IsFiltering(join.children[1]);
 		}
 	}
 	// set up the filter pushdown in the join itself
