@@ -955,6 +955,14 @@ unique_ptr<DataChunk> JoinFilterPushdownInfo::FinalizeMinMax(JoinFilterGlobalSta
 	return final_min_max;
 }
 
+static void CreateDynamicMinMaxFilter(const PhysicalComparisonJoin &op, const JoinFilterPushdownFilter &info,
+                                      const idx_t &filter_col_idx, unique_ptr<TableFilter> filter) {
+	info.dynamic_filters->PushFilter(op, filter_col_idx,
+	                                 make_uniq<SelectivityOptionalFilter>(std::move(filter),
+	                                                                      SelectivityOptionalFilter::MIN_MAX_THRESHOLD,
+	                                                                      SelectivityOptionalFilter::MIN_MAX_CHECK_N));
+}
+
 unique_ptr<DataChunk>
 JoinFilterPushdownInfo::FinalizeFilters(ClientContext &context, const PhysicalComparisonJoin &op,
                                         unique_ptr<DataChunk> final_min_max, optional_ptr<JoinHashTable> ht,
@@ -984,12 +992,11 @@ JoinFilterPushdownInfo::FinalizeFilters(ClientContext &context, const PhysicalCo
 			if (ht && CanUseInFilter(context, ht, cmp)) {
 				PushInFilter(info, *ht, op, filter_idx, filter_col_idx);
 			}
-			unique_ptr<TableFilter> filter;
 			if (Value::NotDistinctFrom(min_val, max_val)) {
 				// min = max - single value
 				// generate a "one-sided" comparison filter for the LHS
 				// Note that this also works for equalities.
-				filter = make_uniq<ConstantFilter>(cmp, std::move(min_val));
+				CreateDynamicMinMaxFilter(op, info, filter_col_idx, make_uniq<ConstantFilter>(cmp, std::move(min_val)));
 			} else {
 				// min != max - generate a range filter or bloom filter + optional range filter
 				// for non-equalities, the range must be half-open
@@ -998,8 +1005,9 @@ JoinFilterPushdownInfo::FinalizeFilters(ClientContext &context, const PhysicalCo
 				case ExpressionType::COMPARE_EQUAL:
 				case ExpressionType::COMPARE_GREATERTHAN:
 				case ExpressionType::COMPARE_GREATERTHANOREQUALTO: {
-					filter =
-					    make_uniq<ConstantFilter>(ExpressionType::COMPARE_GREATERTHANOREQUALTO, std::move(min_val));
+					CreateDynamicMinMaxFilter(
+					    op, info, filter_col_idx,
+					    make_uniq<ConstantFilter>(ExpressionType::COMPARE_GREATERTHANOREQUALTO, std::move(min_val)));
 					break;
 				}
 				default:
@@ -1009,20 +1017,14 @@ JoinFilterPushdownInfo::FinalizeFilters(ClientContext &context, const PhysicalCo
 				case ExpressionType::COMPARE_EQUAL:
 				case ExpressionType::COMPARE_LESSTHAN:
 				case ExpressionType::COMPARE_LESSTHANOREQUALTO: {
-					filter = make_uniq<ConstantFilter>(ExpressionType::COMPARE_LESSTHANOREQUALTO, std::move(max_val));
+					CreateDynamicMinMaxFilter(
+					    op, info, filter_col_idx,
+					    make_uniq<ConstantFilter>(ExpressionType::COMPARE_LESSTHANOREQUALTO, std::move(max_val)));
 					break;
 				}
 				default:
 					break;
 				}
-
-				if (filter) {
-					filter = make_uniq<SelectivityOptionalFilter>(std::move(filter),
-					                                              SelectivityOptionalFilter::MIN_MAX_THRESHOLD,
-					                                              SelectivityOptionalFilter::MIN_MAX_CHECK_N);
-					info.dynamic_filters->PushFilter(op, filter_col_idx, std::move(filter));
-				}
-
 				if (ht && CanUseBloomFilter(context, op, cmp, ht)) {
 					PushBloomFilter(info, *ht, op, filter_col_idx, perfect_join_executor);
 				}
