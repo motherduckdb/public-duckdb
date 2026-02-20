@@ -42,14 +42,14 @@ struct SelectivityOptionalFilterState final : public TableFilterState {
 
 class SelectivityOptionalFilter final : public OptionalFilter {
 public:
-	static constexpr auto MIN_MAX_THRESHOLD = 0.75f;
-	static constexpr idx_t MIN_MAX_CHECK_N = 3;
+	static constexpr auto MIN_MAX_THRESHOLD = 0.9f;
+	static constexpr idx_t MIN_MAX_CHECK_N = 6;
 
 	static constexpr float BF_THRESHOLD = 0.5f;
 	static constexpr idx_t BF_CHECK_N = 3;
 
-	static constexpr float PHJ_THRESHOLD = 0.75f;
-	static constexpr idx_t PHJ_CHECK_N = 3;
+	static constexpr float PHJ_THRESHOLD = 0.5f;
+	static constexpr idx_t PHJ_CHECK_N = 6;
 
 	float selectivity_threshold;
 	idx_t n_vectors_to_check;

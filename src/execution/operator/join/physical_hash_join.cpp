@@ -1011,7 +1011,8 @@ JoinFilterPushdownInfo::FinalizeFilters(ClientContext &context, const PhysicalCo
 				// min = max - single value
 				// generate a "one-sided" comparison filter for the LHS
 				// Note that this also works for equalities.
-				CreateDynamicMinMaxFilter(op, info, filter_col_idx, make_uniq<ConstantFilter>(cmp, std::move(min_val)));
+				info.dynamic_filters->PushFilter(op, filter_col_idx,
+				                                 make_uniq<ConstantFilter>(cmp, std::move(min_val)));
 			} else {
 				// min != max - generate a range filter or bloom filter + optional range filter
 				// for non-equalities, the range must be half-open

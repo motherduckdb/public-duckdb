@@ -2,6 +2,7 @@
 
 #include "duckdb/execution/operator/join/perfect_hash_join_executor.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
+#include "duckdb/common/operator/subtract.hpp"
 
 namespace duckdb {
 
@@ -10,8 +11,72 @@ PerfectHashJoinFilter::PerfectHashJoinFilter(optional_ptr<const PerfectHashJoinE
     : TableFilter(TYPE), perfect_join_executor(perfect_join_executor_p), key_column_name(key_column_name_p) {
 }
 
-FilterPropagateResult PerfectHashJoinFilter::CheckStatistics(BaseStatistics &stats) const {
+template <class T>
+static FilterPropagateResult TemplatedCheckStatistics(const PerfectHashJoinExecutor &perfect_join_executor,
+                                                      const BaseStatistics &stats) {
+	if (!NumericStats::HasMinMax(stats)) {
+		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
+	}
+
+	const auto min = NumericStats::GetMin<T>(stats);
+	const auto max = NumericStats::GetMax<T>(stats);
+	if (min > max) {
+		return FilterPropagateResult::NO_PRUNING_POSSIBLE; // Invalid stats
+	}
+
+	T range_typed;
+	if (!TrySubtractOperator::Operation(max, min, range_typed) || range_typed > 2048) {
+		return FilterPropagateResult::NO_PRUNING_POSSIBLE; // Overflow or too wide of a range
+	}
+
+	Vector range(stats.GetType());
+	auto range_data = FlatVector::GetData<T>(range);
+	for (T val = min; val <= max; val += 1) {
+		*range_data++ = val;
+	}
+
+	const auto total_count = NumericCast<idx_t>(range_typed) + 1;
+	idx_t approved_tuple_count = 0;
+	SelectionVector probe_sel(total_count);
+	perfect_join_executor.FillSelectionVectorSwitchProbe(range, total_count, probe_sel, approved_tuple_count, nullptr);
+
+	if (approved_tuple_count == 0) {
+		return FilterPropagateResult::FILTER_ALWAYS_FALSE;
+	}
+	if (approved_tuple_count == total_count) {
+		return FilterPropagateResult::FILTER_ALWAYS_TRUE;
+	}
 	return FilterPropagateResult::NO_PRUNING_POSSIBLE;
+}
+
+FilterPropagateResult PerfectHashJoinFilter::CheckStatistics(BaseStatistics &stats) const {
+	if (!perfect_join_executor) {
+		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
+	}
+	switch (stats.GetType().InternalType()) {
+	case PhysicalType::UINT8:
+		return TemplatedCheckStatistics<uint8_t>(*perfect_join_executor, stats);
+	case PhysicalType::UINT16:
+		return TemplatedCheckStatistics<uint16_t>(*perfect_join_executor, stats);
+	case PhysicalType::UINT32:
+		return TemplatedCheckStatistics<uint32_t>(*perfect_join_executor, stats);
+	case PhysicalType::UINT64:
+		return TemplatedCheckStatistics<uint64_t>(*perfect_join_executor, stats);
+	case PhysicalType::UINT128:
+		return TemplatedCheckStatistics<uhugeint_t>(*perfect_join_executor, stats);
+	case PhysicalType::INT8:
+		return TemplatedCheckStatistics<int8_t>(*perfect_join_executor, stats);
+	case PhysicalType::INT16:
+		return TemplatedCheckStatistics<int16_t>(*perfect_join_executor, stats);
+	case PhysicalType::INT32:
+		return TemplatedCheckStatistics<int32_t>(*perfect_join_executor, stats);
+	case PhysicalType::INT64:
+		return TemplatedCheckStatistics<int64_t>(*perfect_join_executor, stats);
+	case PhysicalType::INT128:
+		return TemplatedCheckStatistics<hugeint_t>(*perfect_join_executor, stats);
+	default:
+		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
+	}
 }
 
 string PerfectHashJoinFilter::ToString(const string &column_name) const {
