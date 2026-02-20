@@ -27,6 +27,7 @@
 #include "duckdb/storage/temporary_memory_manager.hpp"
 #include "duckdb/main/settings.hpp"
 #include "duckdb/execution/join_hashtable.hpp"
+#include "duckdb/planner/filter/perfect_hash_join_filter.hpp"
 
 namespace duckdb {
 
@@ -931,23 +932,28 @@ bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, con
 	return true;
 }
 
-void JoinFilterPushdownInfo::PushBloomFilter(const JoinFilterPushdownFilter &info, JoinHashTable &ht,
-                                             const PhysicalOperator &op, idx_t filter_col_idx,
-                                             optional_ptr<PerfectHashJoinExecutor> perfect_join_executor) const {
+void JoinFilterPushdownInfo::PushBloomFilter(const PhysicalOperator &op, JoinHashTable &ht,
+                                             const JoinFilterPushdownFilter &info, idx_t filter_col_idx) const {
 	// If the nulls are equal, we let nulls pass. If not, we filter them
 	auto filters_null_values = !ht.NullValuesAreEqual(0);
-	if (perfect_join_executor) {
-		perfect_join_executor->BuildBloomFilter(ht.GetBloomFilter());
-	} else {
-		ht.SetBuildBloomFilter(true);
-	}
-
 	const auto key_name = ht.conditions[0].GetRHS().ToString();
 	const auto key_type = ht.conditions[0].GetLHS().return_type;
+	ht.SetBuildBloomFilter(true);
 	auto filter =
 	    make_uniq_base<TableFilter, BFTableFilter>(ht.GetBloomFilter(), filters_null_values, key_name, key_type);
 	filter = make_uniq<SelectivityOptionalFilter>(std::move(filter), SelectivityOptionalFilter::BF_THRESHOLD,
 	                                              SelectivityOptionalFilter::BF_CHECK_N);
+	info.dynamic_filters->PushFilter(op, filter_col_idx, std::move(filter));
+}
+
+void JoinFilterPushdownInfo::PushPerfectHashJoinFilter(const PhysicalOperator &op,
+                                                       PerfectHashJoinExecutor &perfect_join_executor,
+                                                       const JoinFilterPushdownFilter &info,
+                                                       idx_t filter_col_idx) const {
+	const auto key_name = op.Cast<PhysicalHashJoin>().conditions[0].GetRHS().ToString();
+	auto filter = make_uniq_base<TableFilter, PerfectHashJoinFilter>(perfect_join_executor, key_name);
+	filter = make_uniq<SelectivityOptionalFilter>(std::move(filter), SelectivityOptionalFilter::PHJ_THRESHOLD,
+	                                              SelectivityOptionalFilter::PHJ_CHECK_N);
 	info.dynamic_filters->PushFilter(op, filter_col_idx, std::move(filter));
 }
 
@@ -1034,8 +1040,10 @@ JoinFilterPushdownInfo::FinalizeFilters(ClientContext &context, const PhysicalCo
 				default:
 					break;
 				}
-				if (ht && CanUseBloomFilter(context, op, cmp, ht)) {
-					PushBloomFilter(info, *ht, op, filter_col_idx, perfect_join_executor);
+				if (perfect_join_executor) {
+					PushPerfectHashJoinFilter(op, *perfect_join_executor, info, filter_col_idx);
+				} else if (ht && CanUseBloomFilter(context, op, cmp, ht)) {
+					PushBloomFilter(op, *ht, info, filter_col_idx);
 				}
 			}
 		}

@@ -15,6 +15,15 @@
 
 namespace duckdb {
 
+constexpr float SelectivityOptionalFilter::MIN_MAX_THRESHOLD;
+constexpr idx_t SelectivityOptionalFilter::MIN_MAX_CHECK_N;
+
+constexpr float SelectivityOptionalFilter::BF_THRESHOLD;
+constexpr idx_t SelectivityOptionalFilter::BF_CHECK_N;
+
+constexpr float SelectivityOptionalFilter::PHJ_THRESHOLD;
+constexpr idx_t SelectivityOptionalFilter::PHJ_CHECK_N;
+
 SelectivityOptionalFilterState::SelectivityStats::SelectivityStats(const idx_t n_vectors_to_check,
                                                                    const float selectivity_threshold)
     : tuples_accepted(0), tuples_processed(0), vectors_processed(0), n_vectors_to_check(n_vectors_to_check),

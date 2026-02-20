@@ -195,11 +195,13 @@ FilterPropagateResult BFTableFilter::CheckStatistics(BaseStatistics &stats) cons
 	}
 }
 
-bool BFTableFilter::Equals(const TableFilter &other) const {
-	if (!TableFilter::Equals(other)) {
+bool BFTableFilter::Equals(const TableFilter &other_p) const {
+	if (!TableFilter::Equals(other_p)) {
 		return false;
 	}
-	return false;
+	auto &other = other_p.Cast<BFTableFilter>();
+	return RefersToSameObject(filter, other.filter) && filters_null_values == other.filters_null_values &&
+	       key_column_name == other.key_column_name && key_type == other.key_type;
 }
 unique_ptr<TableFilter> BFTableFilter::Copy() const {
 	return make_uniq<BFTableFilter>(this->filter, this->filters_null_values, this->key_column_name, this->key_type);
