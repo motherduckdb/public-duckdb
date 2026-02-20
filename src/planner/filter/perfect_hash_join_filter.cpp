@@ -19,15 +19,33 @@ string PerfectHashJoinFilter::ToString(const string &column_name) const {
 }
 
 idx_t PerfectHashJoinFilter::Filter(Vector &keys, SelectionVector &sel, idx_t &approved_tuple_count) const {
-	if (perfect_join_executor) {
-		if (!sel.IsSet()) {
-			sel.Initialize(approved_tuple_count);
-		}
-		const idx_t approved_before = approved_tuple_count;
-		approved_tuple_count = 0;
-		perfect_join_executor->FillSelectionVectorSwitchProbe(keys, approved_before, sel, approved_tuple_count,
-		                                                      nullptr);
+	if (!perfect_join_executor) {
+		return approved_tuple_count;
 	}
+
+	const idx_t approved_before = approved_tuple_count;
+	approved_tuple_count = 0;
+
+	// Perform the probe
+	Vector keys_sliced(keys, sel, approved_before);
+	SelectionVector probe_sel(approved_before);
+	perfect_join_executor->FillSelectionVectorSwitchProbe(keys_sliced, approved_before, probe_sel, approved_tuple_count,
+	                                                      nullptr);
+
+	if (approved_tuple_count == approved_before) {
+		return approved_tuple_count; // Nothing was filtered
+	}
+
+	if (sel.IsSet()) {
+		for (idx_t idx = 0; idx < approved_tuple_count; idx++) {
+			const idx_t sliced_sel_idx = probe_sel.get_index_unsafe(idx);
+			const idx_t original_sel_idx = sel.get_index_unsafe(sliced_sel_idx);
+			sel.set_index(idx, original_sel_idx);
+		}
+	} else {
+		sel.Initialize(probe_sel);
+	}
+
 	return approved_tuple_count;
 }
 

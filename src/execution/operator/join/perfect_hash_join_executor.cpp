@@ -171,7 +171,6 @@ bool PerfectHashJoinExecutor::FullScanHashTable(LogicalType &key_type) {
 	key_count = unique_keys; // do not consider keys out of the range
 
 	// Full scan the remaining build columns and fill the perfect hash table
-
 	for (idx_t i = 0; i < join.rhs_output_columns.col_types.size(); i++) {
 		auto &vector = perfect_hash_table[i]->data;
 		const auto output_col_idx = ht.output_columns[i];
@@ -375,9 +374,9 @@ void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(Vector &source, 
 	UnifiedVectorFormat vector_data;
 	source.ToUnifiedFormat(count, vector_data);
 	const auto data = UnifiedVectorFormat::GetData<const T>(vector_data);
-	auto validity_mask = &vector_data.validity;
+	const auto &validity_mask = vector_data.validity;
 	// build selection vector for non-dense build
-	if (validity_mask->AllValid()) {
+	if (validity_mask.AllValid()) {
 		for (idx_t i = 0, sel_idx = 0; i < count; ++i) {
 			// retrieve value from vector
 			auto data_idx = vector_data.sel->get_index(i);
@@ -400,7 +399,7 @@ void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(Vector &source, 
 		for (idx_t i = 0, sel_idx = 0; i < count; ++i) {
 			// retrieve value from vector
 			auto data_idx = vector_data.sel->get_index(i);
-			if (!validity_mask->RowIsValid(data_idx)) {
+			if (!validity_mask.RowIsValidUnsafe(data_idx)) {
 				continue;
 			}
 			auto input_value = data[data_idx];
