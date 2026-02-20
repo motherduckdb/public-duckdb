@@ -14,8 +14,8 @@ static constexpr idx_t N_BITS = 4;                      // the number of bits to
 void BloomFilter::Initialize(ClientContext &context_p, idx_t number_of_rows) {
 	BufferManager &buffer_manager = BufferManager::GetBufferManager(context_p);
 
-	const idx_t min_bits = std::max<idx_t>(MIN_NUM_BITS, number_of_rows * MIN_NUM_BITS_PER_KEY);
-	num_sectors = std::min(NextPowerOfTwo(min_bits) >> LOG_SECTOR_SIZE, MAX_NUM_SECTORS);
+	const idx_t min_bits = MaxValue(MIN_NUM_BITS, number_of_rows * MIN_NUM_BITS_PER_KEY);
+	num_sectors = MinValue(NextPowerOfTwo(min_bits) >> LOG_SECTOR_SIZE, MAX_NUM_SECTORS);
 	bitmask = num_sectors - 1;
 
 	buf_ = buffer_manager.GetBufferAllocator().Allocate(64 + num_sectors * sizeof(uint64_t));
@@ -64,7 +64,7 @@ inline void BloomFilter::InsertOne(const hash_t hash) const {
 	D_ASSERT(initialized);
 	const uint64_t bf_offset = hash & bitmask;
 	const uint64_t mask = GetMask(hash);
-	std::atomic<uint64_t> &slot = *reinterpret_cast<std::atomic<uint64_t> *>(&bf[bf_offset]);
+	atomic<uint64_t> &slot = *reinterpret_cast<atomic<uint64_t> *>(&bf[bf_offset]);
 
 	slot.fetch_or(mask, std::memory_order_relaxed);
 }

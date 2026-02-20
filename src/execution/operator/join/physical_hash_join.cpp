@@ -907,19 +907,28 @@ bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, con
 		return false;
 	}
 
-	// bf is only supported for single key joins with equality condition as the Filter API only allows
-	// single-column filters so far
-	const bool can_use_bf = ht->conditions.size() == 1 && cmp == ExpressionType::COMPARE_EQUAL;
+	// bf is only supported for single key joins with equality condition
+	// as the Filter API only allows single-column filters so far
+	if (ht->conditions.size() != 1 || cmp != ExpressionType::COMPARE_EQUAL) {
+		return false;
+	}
 
-	// building the bloom filter is costly on the build to make probing faster, so only use it if there are
-	// more probing tuples than build tuples
+	// building the bloom filter is costly on the build to make probing faster,
+	// so only use it if there are less build tuples than probing tuples
 	static constexpr double BUILD_TO_PROBE_RATIO_THRESHOLD = 1.0;
 	const double build_to_probe_ratio =
-	    static_cast<double>(op.children[0].get().estimated_cardinality) / static_cast<double>(ht->Count());
-	const bool probe_larger_then_build = build_to_probe_ratio > BUILD_TO_PROBE_RATIO_THRESHOLD;
+	    static_cast<double>(ht->Count()) / static_cast<double>(op.children[0].get().estimated_cardinality);
+	if (build_to_probe_ratio > BUILD_TO_PROBE_RATIO_THRESHOLD) {
+		return false;
+	}
 
-	// only use bloom filter if there is no in-filter already
-	return can_use_bf && probe_larger_then_build;
+	// if we have a build side without a filter, only build the bloom filter if it's small enough
+	static constexpr idx_t NON_FILTERING_BUILD_SIDE_THRESHOLD = 4194304;
+	if (!build_side_has_filter && ht->Count() > NON_FILTERING_BUILD_SIDE_THRESHOLD) {
+		return false;
+	}
+
+	return true;
 }
 
 void JoinFilterPushdownInfo::PushBloomFilter(const JoinFilterPushdownFilter &info, JoinHashTable &ht,

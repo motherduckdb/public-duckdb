@@ -146,6 +146,28 @@ void JoinFilterPushdownOptimizer::GetPushdownFilterTargets(LogicalOperator &op,
 	}
 }
 
+bool JoinFilterPushdownOptimizer::IsFiltering(const unique_ptr<LogicalOperator> &op) {
+	switch (op->type) {
+	case LogicalOperatorType::LOGICAL_GET: {
+		auto &get = op->Cast<LogicalGet>();
+		return !get.table_filters.filters.empty();
+	}
+	case LogicalOperatorType::LOGICAL_FILTER: {
+		return true;
+	}
+	case LogicalOperatorType::LOGICAL_TOP_N: {
+		return true;
+	}
+	default:
+		for (const unique_ptr<LogicalOperator> &child : op->children) {
+			if (IsFiltering(child)) {
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 void JoinFilterPushdownOptimizer::GenerateJoinFilters(LogicalComparisonJoin &join) {
 	switch (join.join_type) {
 	case JoinType::MARK:
@@ -254,6 +276,11 @@ void JoinFilterPushdownOptimizer::GenerateJoinFilters(LogicalComparisonJoin &joi
 			pushdown_info->min_max_aggregates.push_back(std::move(aggr_expr));
 		}
 	}
+	if (!pushdown_info->probe_info.empty()) {
+		const idx_t child_idx = join.children[1]->type == LogicalOperatorType::LOGICAL_DELIM_GET ? 0 : 1;
+		pushdown_info->build_side_has_filter = IsFiltering(join.children[child_idx]);
+	}
+
 	// set up the filter pushdown in the join itself
 	join.filter_pushdown = std::move(pushdown_info);
 }
