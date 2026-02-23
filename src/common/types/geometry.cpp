@@ -2632,6 +2632,36 @@ static void ToSpatialGeometryAnalyze(ToSpatialGeometryState &state) {
 	}
 }
 
+static float DoubleToFloatDown(double d) {
+	if (d > static_cast<double>(std::numeric_limits<float>::max())) {
+		return std::numeric_limits<float>::max();
+	}
+	if (d <= static_cast<double>(std::numeric_limits<float>::lowest())) {
+		return std::numeric_limits<float>::lowest();
+	}
+
+	auto f = static_cast<float>(d);
+	if (static_cast<double>(f) <= d) {
+		return f;
+	}
+	return std::nextafter(f, std::numeric_limits<float>::lowest());
+}
+
+static float DoubleToFloatUp(double d) {
+	if (d >= static_cast<double>(std::numeric_limits<float>::max())) {
+		return std::numeric_limits<float>::max();
+	}
+	if (d < static_cast<double>(std::numeric_limits<float>::lowest())) {
+		return std::numeric_limits<float>::lowest();
+	}
+
+	auto f = static_cast<float>(d);
+	if (static_cast<double>(f) >= d) {
+		return f;
+	}
+	return std::nextafter(f, std::numeric_limits<float>::max());
+}
+
 static void ToSpatialGeometryConvert(ToSpatialGeometryState &state, FixedSizeBlobWriter &writer) {
 	auto &reader = state.reader;
 
@@ -2653,18 +2683,18 @@ static void ToSpatialGeometryConvert(ToSpatialGeometryState &state, FixedSizeBlo
 
 	if (state.root_bbox) {
 		// Write bbox
-		writer.Write<float>(state.extent.x_min);
-		writer.Write<float>(state.extent.y_min);
-		writer.Write<float>(state.extent.x_max);
-		writer.Write<float>(state.extent.y_max);
+		writer.Write<float>(DoubleToFloatDown(state.extent.x_min));
+		writer.Write<float>(DoubleToFloatDown(state.extent.y_min));
+		writer.Write<float>(DoubleToFloatUp(state.extent.x_max));
+		writer.Write<float>(DoubleToFloatUp(state.extent.y_max));
 
 		if (state.root_hasz) {
-			writer.Write<float>(state.extent.z_min);
-			writer.Write<float>(state.extent.z_max);
+			writer.Write<float>(DoubleToFloatDown(state.extent.z_min));
+			writer.Write<float>(DoubleToFloatUp(state.extent.z_max));
 		}
 		if (state.root_hasm) {
-			writer.Write<float>(state.extent.m_min);
-			writer.Write<float>(state.extent.m_max);
+			writer.Write<float>(DoubleToFloatDown(state.extent.m_min));
+			writer.Write<float>(DoubleToFloatUp(state.extent.m_max));
 		}
 	}
 
