@@ -316,7 +316,7 @@ void PerfectHashJoinExecutor::FillSelectionVectorSwitchProbe(Vector &source, con
 template <bool BUILD_SEL_VEC>
 void PerfectHashJoinExecutor::FillSelectionVectorSwitchProbe(Vector &source, const idx_t &count,
                                                              SelectionVector &probe_sel_vec, idx_t &probe_sel_count,
-                                                             SelectionVector *const build_sel_vec) const {
+                                                             SelectionVector *build_sel_vec) const {
 	D_ASSERT(BUILD_SEL_VEC == static_cast<bool>(build_sel_vec));
 	switch (source.GetType().InternalType()) {
 	case PhysicalType::INT8:
@@ -367,58 +367,54 @@ void PerfectHashJoinExecutor::FillSelectionVectorSwitchProbe(Vector &source, con
 template <typename T, bool BUILD_SEL_VEC>
 void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(Vector &source, const idx_t &count,
                                                                 SelectionVector &probe_sel_vec, idx_t &probe_sel_count,
-                                                                SelectionVector *const build_sel_vec) const {
-	UnifiedVectorFormat vector_data;
-	source.ToUnifiedFormat(count, vector_data);
-
-	if (vector_data.validity.AllValid()) {
-		if (bitmap_build_idx.AllValid()) {
-			TemplatedFillSelectionVectorProbe<T, BUILD_SEL_VEC, true, true>(vector_data, count, probe_sel_vec,
-			                                                                probe_sel_count, build_sel_vec);
-		} else {
-			TemplatedFillSelectionVectorProbe<T, BUILD_SEL_VEC, true, false>(vector_data, count, probe_sel_vec,
-			                                                                 probe_sel_count, build_sel_vec);
-		}
-	} else {
-		if (bitmap_build_idx.AllValid()) {
-			TemplatedFillSelectionVectorProbe<T, BUILD_SEL_VEC, false, true>(vector_data, count, probe_sel_vec,
-			                                                                 probe_sel_count, build_sel_vec);
-		} else {
-			TemplatedFillSelectionVectorProbe<T, BUILD_SEL_VEC, false, false>(vector_data, count, probe_sel_vec,
-			                                                                  probe_sel_count, build_sel_vec);
-		}
-	}
-}
-
-template <typename T, bool BUILD_SEL_VEC, bool SOURCE_ALL_VALID, bool BITMAP_BUILD_IDX_ALL_VALID>
-void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(const UnifiedVectorFormat &vector_data,
-                                                                const idx_t &count, SelectionVector &probe_sel_vec,
-                                                                idx_t &probe_sel_count,
-                                                                SelectionVector *const build_sel_vec) const {
+                                                                SelectionVector *build_sel_vec) const {
 	const auto min_value = perfect_join_statistics.build_min.GetValueUnsafe<T>();
 	const auto max_value = perfect_join_statistics.build_max.GetValueUnsafe<T>();
 
+	UnifiedVectorFormat vector_data;
+	source.ToUnifiedFormat(count, vector_data);
 	const auto data = UnifiedVectorFormat::GetData<const T>(vector_data);
 	const auto &validity_mask = vector_data.validity;
-
 	// build selection vector for non-dense build
-	for (idx_t i = 0; i < count; i++) {
-		// retrieve value from vector
-		const auto data_idx = vector_data.sel->get_index(i);
-		if (!SOURCE_ALL_VALID && !validity_mask.RowIsValidUnsafe(data_idx)) {
-			continue;
-		}
-		const auto &input_value = data[data_idx];
-		// add index to selection vector if value in the range
-		if (min_value <= input_value && input_value <= max_value) {
-			// subtract min value to get the idx
-			const auto idx = UnsafeNumericCast<idx_t>(input_value - min_value);
-			// position check for matches in the build
-			if (!BITMAP_BUILD_IDX_ALL_VALID && bitmap_build_idx.RowIsValidUnsafe(idx)) {
-				if (BUILD_SEL_VEC) {
-					build_sel_vec->set_index(probe_sel_count, idx);
+	if (validity_mask.AllValid()) {
+		for (idx_t i = 0, sel_idx = 0; i < count; ++i) {
+			// retrieve value from vector
+			const auto data_idx = vector_data.sel->get_index(i);
+			const auto &input_value = data[data_idx];
+			// add index to selection vector if value in the range
+			if (min_value <= input_value && input_value <= max_value) {
+				// subtract min value to get the idx
+				const auto idx = UnsafeNumericCast<idx_t>(input_value - min_value);
+				// position check for matches in the build
+				if (bitmap_build_idx.RowIsValid(idx)) {
+					if (BUILD_SEL_VEC) {
+						build_sel_vec->set_index(sel_idx, idx);
+					}
+					probe_sel_vec.set_index(sel_idx++, i);
+					probe_sel_count++;
 				}
-				probe_sel_vec.set_index(probe_sel_count++, i);
+			}
+		}
+	} else {
+		for (idx_t i = 0, sel_idx = 0; i < count; ++i) {
+			// retrieve value from vector
+			const auto data_idx = vector_data.sel->get_index(i);
+			if (!validity_mask.RowIsValidUnsafe(data_idx)) {
+				continue;
+			}
+			const auto &input_value = data[data_idx];
+			// add index to selection vector if value in the range
+			if (min_value <= input_value && input_value <= max_value) {
+				// subtract min value to get the idx
+				const auto idx = UnsafeNumericCast<idx_t>(input_value - min_value);
+				// position check for matches in the build
+				if (bitmap_build_idx.RowIsValid(idx)) {
+					if (BUILD_SEL_VEC) {
+						build_sel_vec->set_index(sel_idx, idx);
+					}
+					probe_sel_vec.set_index(sel_idx++, i);
+					probe_sel_count++;
+				}
 			}
 		}
 	}
