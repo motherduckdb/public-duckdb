@@ -2274,9 +2274,7 @@ LogicalType Geometry::GetVectorizedType(GeometryStorageType type) {
 	}
 
 	if (type == GeometryStorageType::SPATIAL) {
-		auto blob_type = LogicalType(LogicalTypeId::BLOB);
-		blob_type.SetAlias("GEOMETRY");
-		return blob_type;
+		return GetSpatialGeometryType();
 	}
 
 	const auto types = GetSpecializedType(type);
@@ -2851,6 +2849,16 @@ void Geometry::FromVectorizedFormat(Vector &source, Vector &target, idx_t count,
 
 	const auto types = GetSpecializedType(type);
 	FromVectorizedFormat(source, target, count, types.first, types.second, result_offset);
+}
+
+LogicalType Geometry::GetSpatialGeometryType() {
+	auto blob_type = LogicalType(LogicalTypeId::BLOB);
+	blob_type.SetAlias("GEOMETRY");
+	return blob_type;
+}
+
+bool Geometry::IsSpatialGeometryType(const LogicalType &type) {
+	return type.id() == LogicalTypeId::BLOB && type.HasAlias() && type.GetAlias() == "GEOMETRY";
 }
 
 } // namespace duckdb

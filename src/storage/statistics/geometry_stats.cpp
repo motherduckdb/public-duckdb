@@ -115,7 +115,7 @@ void GeometryStats::Deserialize(Deserializer &deserializer, BaseStatistics &base
 	auto &data = GetDataUnsafe(base);
 
 	// Read old garbage string stats if present, but ignore it since it is not relevant to geometry stats
-	if (deserializer.HasProperty(200, "min")) {
+	if (deserializer.CanDeserializeProperty(200, "min")) {
 		auto string_stats = StringStats::CreateEmpty(LogicalType::VARCHAR);
 		StringStats::Deserialize(deserializer, string_stats);
 

@@ -48,8 +48,8 @@ static void CheckTypeIsSupported(const LogicalType &logical_type, AttachedDataba
 		case LogicalTypeId::VARIANT: {
 			const auto storage_version = db.GetStorageManager().GetStorageVersion();
 
-			if (storage_version < 7) {
-				auto required = GetStorageVersionName(7, false);
+			if (storage_version < Variant::VERSION_ADDED) {
+				auto required = GetStorageVersionName(Variant::VERSION_ADDED, false);
 				auto current = GetStorageVersionName(storage_version, false);
 
 				throw InvalidInputException("VARIANT columns are not supported in storage versions prior to %s "
@@ -60,8 +60,8 @@ static void CheckTypeIsSupported(const LogicalType &logical_type, AttachedDataba
 		case LogicalTypeId::GEOMETRY: {
 			const auto storage_version = db.GetStorageManager().GetStorageVersion();
 
-			if (GeoType::HasCRS(type) && storage_version < 7) {
-				auto required = GetStorageVersionName(7, false);
+			if (GeoType::HasCRS(type) && storage_version < Geometry::VERSION_ADDED) {
+				auto required = GetStorageVersionName(Geometry::VERSION_ADDED, false);
 				auto current = GetStorageVersionName(storage_version, false);
 
 				throw InvalidInputException(

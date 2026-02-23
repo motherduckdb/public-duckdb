@@ -351,8 +351,7 @@ unique_ptr<ColumnCheckpointState> GeoColumnData::Checkpoint(const RowGroup &row_
 
 	// Old storage version, write as old type
 	if (GetStorageManager().GetStorageVersion() < 7) {
-		auto legacy_type = LogicalType(LogicalTypeId::BLOB);
-		legacy_type.SetAlias("GEOMETRY");
+		auto legacy_type = Geometry::GetSpatialGeometryType();
 		auto new_column =
 		    CreateColumn(block_manager, this->info, base_column->column_index, legacy_type, GetDataType(), this);
 

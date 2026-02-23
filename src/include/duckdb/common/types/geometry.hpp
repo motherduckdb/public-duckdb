@@ -240,6 +240,12 @@ enum class GeometryStorageType : uint8_t {
 class Geometry {
 public:
 	static constexpr idx_t MAX_RECURSION_DEPTH = 16;
+	static constexpr idx_t VERSION_ADDED = 7; // Added to core in DuckDB v1.5.0
+
+	//! Check for legayc geometry type (pre v1.5)
+	static bool IsSpatialGeometryType(const LogicalType &type);
+	//! Get legacy geometry type (pre v1.5)
+	static LogicalType GetSpatialGeometryType();
 
 	//! Convert from WKT
 	DUCKDB_API static bool FromString(const string_t &wkt_text, string_t &result, Vector &result_vector, bool strict);

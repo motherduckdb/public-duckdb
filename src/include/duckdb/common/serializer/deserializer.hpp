@@ -52,7 +52,7 @@ public:
 	};
 
 public:
-	virtual bool HasProperty(const field_id_t field_id, const char *tag) = 0;
+	virtual bool CanDeserializeProperty(const field_id_t field_id, const char *tag) = 0;
 
 	// Read into an existing value
 	template <typename T>

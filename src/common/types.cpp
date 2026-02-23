@@ -1362,8 +1362,7 @@ void LogicalType::Serialize(Serializer &serializer) const {
 	// Serialize geometry as old extension geometry type if required
 	if (id_ == LogicalTypeId::GEOMETRY && !serializer.ShouldSerialize(7)) {
 		// This will drop the CRS information, but that's better than throwing an error.
-		auto legacy_geom = LogicalType(LogicalTypeId::BLOB);
-		legacy_geom.SetAlias("GEOMETRY");
+		auto legacy_geom = Geometry::GetSpatialGeometryType();
 		legacy_geom.Serialize(serializer);
 		return;
 	}
@@ -1391,12 +1390,13 @@ LogicalType LogicalType::Deserialize(Deserializer &deserializer) {
 	auto id = deserializer.ReadProperty<LogicalTypeId>(100, "id");
 	auto type_info = deserializer.ReadPropertyWithDefault<shared_ptr<ExtraTypeInfo>>(101, "type_info");
 
-	if (id == LogicalTypeId::BLOB && type_info && type_info->alias == "GEOMETRY") {
+	LogicalType result(id, std::move(type_info));
+
+	if (Geometry::IsSpatialGeometryType(result)) {
 		// This is a legacy geometry type, deserialize as geometry
 		return LogicalType::GEOMETRY();
 	}
 
-	LogicalType result(id, std::move(type_info));
 	return result;
 }
 

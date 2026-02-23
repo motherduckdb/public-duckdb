@@ -59,7 +59,7 @@ private:
 	bool OnNullableBegin() final;
 	void OnNullableEnd() final;
 
-	bool HasProperty(const field_id_t field_id, const char *tag) final;
+	bool CanDeserializeProperty(const field_id_t field_id, const char *tag) final;
 
 	//===--------------------------------------------------------------------===//
 	// Primitive Types
