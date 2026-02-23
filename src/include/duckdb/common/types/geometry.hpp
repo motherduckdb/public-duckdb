@@ -278,7 +278,7 @@ public:
 	DUCKDB_API static pair<GeometryType, VertexType> GetSpecializedType(GeometryStorageType type);
 
 	DUCKDB_API static void FromSpatialGeometry(const string_t &source, string_t &target, Vector &vector);
-	DUCKDB_API static void FromSpatialGeometry(Vector &source, Vector &target, idx_t count);
+	DUCKDB_API static void FromSpatialGeometry(Vector &source, Vector &target, idx_t count, idx_t result_offset);
 	DUCKDB_API static void FromSpatialGeometry(const string_t &source, string &target);
 
 	DUCKDB_API static void ToSpatialGeometry(const string_t &source, string_t &target, Vector &vector);

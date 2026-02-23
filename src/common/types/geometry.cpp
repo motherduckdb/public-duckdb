@@ -2275,7 +2275,7 @@ LogicalType Geometry::GetVectorizedType(GeometryStorageType type) {
 
 	if (type == GeometryStorageType::SPATIAL) {
 		auto blob_type = LogicalType(LogicalTypeId::BLOB);
-		blob_type.SetAlias("geometry");
+		blob_type.SetAlias("GEOMETRY");
 		return blob_type;
 	}
 
@@ -2481,8 +2481,26 @@ void Geometry::FromSpatialGeometry(const string_t &source, string_t &target, Vec
 	target = blob;
 }
 
-void Geometry::FromSpatialGeometry(Vector &source_vec, Vector &target_vec, idx_t count) {
-	UnaryExecutor::Execute<string_t, string_t>(source_vec, target_vec, count, [&](const string_t &source) {
+void Geometry::FromSpatialGeometry(Vector &source_vec, Vector &target_vec, idx_t count, idx_t result_offset) {
+	UnifiedVectorFormat source_format;
+	source_vec.ToUnifiedFormat(count, source_format);
+
+	const auto source_data = UnifiedVectorFormat::GetData<string_t>(source_format);
+	const auto target_data = FlatVector::GetData<string_t>(target_vec);
+
+	auto &target_mask = FlatVector::Validity(target_vec);
+
+	for (idx_t row_idx = 0; row_idx < count; row_idx++) {
+		const auto src_idx = source_format.sel->get_index(row_idx);
+		const auto res_idx = result_offset + row_idx;
+
+		if (!source_format.validity.RowIsValid(src_idx)) {
+			target_mask.EnsureWritable();
+			target_mask.SetInvalid(res_idx);
+			continue;
+		}
+
+		const auto &source = source_data[src_idx];
 		BlobReader reader(source.GetData(), static_cast<uint32_t>(source.GetSize()));
 		const auto required_size = FromLegacyGeometryRequiredSize(reader);
 
@@ -2493,10 +2511,9 @@ void Geometry::FromSpatialGeometry(Vector &source_vec, Vector &target_vec, idx_t
 		FixedSizeBlobWriter writer(blob_data, required_size);
 
 		FromLegacyGeometryConversion(reader, writer);
-
 		blob.Finalize();
-		return blob;
-	});
+		target_data[res_idx] = blob;
+	}
 }
 
 void Geometry::FromSpatialGeometry(const string_t &source, string &target) {
@@ -2828,7 +2845,7 @@ void Geometry::ToVectorizedFormat(Vector &source, Vector &target, idx_t count, G
 void Geometry::FromVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryStorageType type,
                                     idx_t result_offset) {
 	if (type == GeometryStorageType::SPATIAL) {
-		FromSpatialGeometry(source, target, count);
+		FromSpatialGeometry(source, target, count, result_offset);
 		return;
 	}
 
