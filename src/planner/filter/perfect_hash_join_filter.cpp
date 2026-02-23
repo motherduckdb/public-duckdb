@@ -31,9 +31,11 @@ static FilterPropagateResult TemplatedCheckStatistics(const PerfectHashJoinExecu
 
 	Vector range(stats.GetType());
 	auto range_data = FlatVector::GetData<T>(range);
-	for (T val = min; val <= max; val += 1) {
+	T val = min;
+	for (; val < max; val += 1) {
 		*range_data++ = val;
 	}
+	*range_data = val;
 
 	const auto total_count = NumericCast<idx_t>(range_typed) + 1;
 	idx_t approved_tuple_count = 0;

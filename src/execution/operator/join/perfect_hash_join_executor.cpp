@@ -397,7 +397,6 @@ void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(const UnifiedVec
                                                                 SelectionVector *const build_sel_vec) const {
 	const auto min_value = perfect_join_statistics.build_min.GetValueUnsafe<T>();
 	const auto max_value = perfect_join_statistics.build_max.GetValueUnsafe<T>();
-	const auto range = NumericCast<idx_t>(max_value - min_value);
 
 	const auto data = UnifiedVectorFormat::GetData<const T>(vector_data);
 	const auto &validity_mask = vector_data.validity;
