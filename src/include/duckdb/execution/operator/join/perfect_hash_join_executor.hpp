@@ -50,10 +50,14 @@ public:
 private:
 	template <bool BUILD_SEL_VEC>
 	void FillSelectionVectorSwitchProbe(Vector &source, const idx_t &count, SelectionVector &probe_sel_vec,
-	                                    idx_t &probe_sel_count, SelectionVector *build_sel_vec) const;
+	                                    idx_t &probe_sel_count, SelectionVector *const build_sel_vec) const;
 	template <typename T, bool BUILD_SEL_VEC>
 	void TemplatedFillSelectionVectorProbe(Vector &source, const idx_t &count, SelectionVector &probe_sel_vec,
-	                                       idx_t &probe_sel_count, SelectionVector *build_sel_vec) const;
+	                                       idx_t &probe_sel_count, SelectionVector *const build_sel_vec) const;
+	template <typename T, bool BUILD_SEL_VEC, bool SOURCE_ALL_VALID, bool BITMAP_BUILD_IDX_ALL_VALID>
+	void TemplatedFillSelectionVectorProbe(const UnifiedVectorFormat &source, const idx_t &count,
+	                                       SelectionVector &probe_sel_vec, idx_t &probe_sel_count,
+	                                       SelectionVector *const build_sel_vec) const;
 
 	bool FillSelectionVectorSwitchBuild(Vector &source, SelectionVector &sel_vec, SelectionVector &seq_sel_vec,
 	                                    idx_t count);
