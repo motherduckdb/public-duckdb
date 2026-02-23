@@ -333,7 +333,7 @@ public:
 	static constexpr auto TYPE = ExtraPersistentColumnDataType::GEOMETRY;
 	GeometryPersistentColumnData() : ExtraPersistentColumnData(TYPE) {
 	}
-	GeometryPersistentColumnData(GeometryStorageType storage_type)
+	explicit GeometryPersistentColumnData(GeometryStorageType storage_type)
 	    : ExtraPersistentColumnData(TYPE), storage_type(storage_type) {
 	}
 
