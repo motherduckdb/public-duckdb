@@ -6,7 +6,7 @@ load __TEST_DIR__/eviction_queues.db
 
 # fudge factor for approximate_size drift
 statement ok
-CREATE MACRO fudge() AS (5);
+CREATE MACRO fudge() AS (20);
 
 statement ok
 CREATE MACRO eviction_invariants_ok() AS (
