@@ -415,6 +415,9 @@ unique_ptr<CatalogEntry> DuckTableEntry::AddColumn(ClientContext &context, AddCo
 	binder->SetSearchPath(catalog, schema.name);
 	binder->BindLogicalType(info.new_column.TypeMutable());
 
+	// Check if type is supported in this database version
+	CheckTypeIsSupported(info.new_column.GetType(), catalog.GetAttached());
+
 	info.new_column.SetOid(columns.LogicalColumnCount());
 	info.new_column.SetStorageOid(columns.PhysicalColumnCount());
 	auto col = info.new_column.Copy();
@@ -1049,6 +1052,9 @@ unique_ptr<CatalogEntry> DuckTableEntry::ChangeColumnType(ClientContext &context
 	if (info.target_type == LogicalType::UNKNOWN) {
 		info.target_type = bound_expression->return_type;
 	}
+
+	// Check if type is supported in this database version
+	CheckTypeIsSupported(info.target_type, catalog.GetAttached());
 
 	auto bound_constraints = binder->BindConstraints(constraints, name, columns);
 	for (auto &col : columns.Logical()) {
