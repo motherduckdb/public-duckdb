@@ -5,6 +5,9 @@
 load __TEST_DIR__/eviction_queues_spill.db
 
 statement ok
+SET threads=1;
+
+statement ok
 CREATE MACRO fudge() AS (20);
 
 statement ok
