@@ -574,6 +574,7 @@ public:
 	                     unique_ptr<PersistentCollectionData> row_group_data) override;
 	optional_ptr<PersistentCollectionData> GetRowGroupData(DataTable &table, idx_t start_index, idx_t &count) override;
 	bool HasRowGroupData() override;
+	unordered_set<block_id_t> &GetBlockIdsInUse() override;
 
 private:
 	idx_t initial_wal_size = 0;
@@ -581,6 +582,7 @@ private:
 	WriteAheadLog &wal;
 	WALCommitState state;
 	reference_map_t<DataTable, unordered_map<idx_t, OptimisticallyWrittenRowGroupData>> optimistically_written_data;
+	unordered_set<block_id_t> block_ids_in_use;
 };
 
 SingleFileStorageCommitState::SingleFileStorageCommitState(StorageManager &storage, WriteAheadLog &wal)
@@ -612,6 +614,11 @@ void SingleFileStorageCommitState::RevertCommit() {
 	if (state != WALCommitState::IN_PROGRESS) {
 		return;
 	}
+	// We no longer use any of the blocks in this COMMIT.
+	auto &block_manager = wal.GetStorageManager().GetBlockManager();
+	for (const block_id_t block_id : block_ids_in_use) {
+		block_manager.MarkBlockAsModified(block_id);
+	}
 	if (wal.GetTotalWritten() > initial_written) {
 		// remove any entries written into the WAL by truncating it
 		wal.Truncate(initial_wal_size);
@@ -622,6 +629,12 @@ void SingleFileStorageCommitState::RevertCommit() {
 void SingleFileStorageCommitState::FlushCommit() {
 	if (state != WALCommitState::IN_PROGRESS) {
 		return;
+	}
+	// Move the blocks in this COMMIT into the WAL and mark them as "in use".
+	auto &block_manager = wal.GetStorageManager().GetBlockManager();
+	for (const block_id_t block_id : block_ids_in_use) {
+		block_manager.MarkBlockAsUsed(block_id);
+		wal.AddBlockInUse(block_id);
 	}
 	wal.Flush();
 	state = WALCommitState::FLUSHED;
@@ -661,6 +674,10 @@ optional_ptr<PersistentCollectionData> SingleFileStorageCommitState::GetRowGroup
 
 bool SingleFileStorageCommitState::HasRowGroupData() {
 	return !optimistically_written_data.empty();
+}
+
+unordered_set<block_id_t> &SingleFileStorageCommitState::GetBlockIdsInUse() {
+	return block_ids_in_use;
 }
 
 unique_ptr<StorageCommitState> SingleFileStorageManager::GenStorageCommitState(WriteAheadLog &wal) {

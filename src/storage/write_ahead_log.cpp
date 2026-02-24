@@ -42,6 +42,10 @@ AttachedDatabase &WriteAheadLog::GetDatabase() {
 	return storage_manager.GetAttached();
 }
 
+StorageManager &WriteAheadLog::GetStorageManager() {
+	return storage_manager;
+}
+
 BufferedFileWriter &WriteAheadLog::Initialize() {
 	if (Initialized()) {
 		return *writer;
