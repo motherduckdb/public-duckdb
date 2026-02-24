@@ -26,8 +26,8 @@ constexpr idx_t SelectivityOptionalFilter::PHJ_CHECK_N;
 
 SelectivityOptionalFilterState::SelectivityStats::SelectivityStats(const idx_t n_vectors_to_check,
                                                                    const float selectivity_threshold)
-    : tuples_accepted(0), tuples_processed(0), vectors_processed(0), n_vectors_to_check(n_vectors_to_check),
-      selectivity_threshold(selectivity_threshold), status(FilterStatus::ACTIVE) {
+    : n_vectors_to_check(n_vectors_to_check), selectivity_threshold(selectivity_threshold), tuples_accepted(0),
+      tuples_processed(0), vectors_processed(0), status(FilterStatus::ACTIVE), n_row_groups_pause(1) {
 }
 
 void SelectivityOptionalFilterState::SelectivityStats::Update(idx_t accepted, idx_t processed) {
@@ -36,8 +36,7 @@ void SelectivityOptionalFilterState::SelectivityStats::Update(idx_t accepted, id
 	tuples_processed += processed;
 
 	static constexpr idx_t VECTORS_PER_ROW_GROUP = DEFAULT_ROW_GROUP_SIZE / DEFAULT_STANDARD_VECTOR_SIZE;
-	if (vectors_processed == VECTORS_PER_ROW_GROUP) {
-		// Reset every 60 vectors (number of vectors in a default row group)
+	if (vectors_processed == n_row_groups_pause * VECTORS_PER_ROW_GROUP) {
 		vectors_processed = 0;
 		tuples_accepted = 0;
 		tuples_processed = 0;
@@ -46,6 +45,9 @@ void SelectivityOptionalFilterState::SelectivityStats::Update(idx_t accepted, id
 		// pause the filter if we processed enough vectors and the selectivity is too high
 		if (GetSelectivity() >= selectivity_threshold) {
 			status = FilterStatus::PAUSED_DUE_TO_HIGH_SELECTIVITY;
+			n_row_groups_pause++; // increase the pause duration
+		} else {
+			n_row_groups_pause = 1; // selective enough, reset the pause duration
 		}
 	}
 }

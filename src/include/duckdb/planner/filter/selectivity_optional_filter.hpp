@@ -16,19 +16,26 @@ struct SelectivityOptionalFilterState final : public TableFilterState {
 	enum class FilterStatus { ACTIVE, PAUSED_DUE_TO_HIGH_SELECTIVITY };
 
 	struct SelectivityStats {
+		SelectivityStats(idx_t n_vectors_to_check, float selectivity_threshold);
+
+		void Update(idx_t accepted, idx_t processed);
+		bool IsActive() const;
+		double GetSelectivity() const;
+
+		//! Configuration
+		const idx_t n_vectors_to_check;
+		const float selectivity_threshold;
+
+		//! For computing selectivity stats
 		idx_t tuples_accepted;
 		idx_t tuples_processed;
 		idx_t vectors_processed;
 
-		idx_t n_vectors_to_check;
-		float selectivity_threshold;
-
+		//! Whether currently paused
 		FilterStatus status;
 
-		SelectivityStats(idx_t n_vectors_to_check, float selectivity_threshold);
-		void Update(idx_t accepted, idx_t processed);
-		bool IsActive() const;
-		double GetSelectivity() const;
+		//! For exponential backoff
+		idx_t n_row_groups_pause;
 	};
 
 	unique_ptr<TableFilterState> child_state;
