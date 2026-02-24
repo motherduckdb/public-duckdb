@@ -1129,16 +1129,17 @@ void DataTable::MergeStorage(RowGroupCollection &data, optional_ptr<StorageCommi
 	row_groups->Verify();
 }
 
-static void GatherBlockIds(const PersistentColumnData &column_data, unordered_set<block_id_t> &block_ids) {
+static void GatherBlockIds(WriteAheadLog &log, const PersistentColumnData &column_data,
+                           unordered_set<block_id_t> &block_ids) {
 	for (const auto &pointer : column_data.pointers) {
-		auto block_ptr = pointer.block_pointer;
-		if (block_ptr.block_id != INVALID_BLOCK) {
-			block_ids.insert(block_ptr.block_id);
+		const auto block_id = pointer.block_pointer.block_id;
+		if (block_id != INVALID_BLOCK && log.NewBlockInUse(block_id)) {
+			block_ids.insert(block_id);
 		}
 	}
 	// Recurse into the children.
 	for (const auto &child_column_data : column_data.child_columns) {
-		GatherBlockIds(child_column_data, block_ids);
+		GatherBlockIds(log, child_column_data, block_ids);
 	}
 }
 
@@ -1169,7 +1170,7 @@ void DataTable::WriteToLog(DuckTransaction &transaction, WriteAheadLog &log, idx
 	// Get all the blocks that need to be kept alive as long as the WAL is alive.
 	for (const auto &row_group_data : entry->row_group_data) {
 		for (const auto &column_data : row_group_data.column_data) {
-			GatherBlockIds(column_data, commit_state->GetBlockIdsInUse());
+			GatherBlockIds(log, column_data, commit_state->GetBlockIdsInUse());
 		}
 	}
 

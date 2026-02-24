@@ -179,11 +179,8 @@ idx_t StorageManager::GetWALEntriesCount() const {
 	return wal_entries_count;
 }
 
-void StorageManager::ResetWAL() {
+void StorageManager::ResetWALEntriesCount() {
 	wal_entries_count = 0;
-	if (wal) {
-		wal->MarkBlocksAsModified();
-	}
 }
 
 void StorageManager::IncrementWALEntriesCount() {
@@ -254,7 +251,6 @@ bool StorageManager::WALStartCheckpoint(MetaBlockPointer meta_block, CheckpointO
 
 void StorageManager::WALFinishCheckpoint(lock_guard<mutex> &) {
 	D_ASSERT(wal.get());
-	ResetWAL();
 
 	// "wal" points to the checkpoint WAL
 	// first check if the checkpoint WAL has been written to
@@ -264,6 +260,7 @@ void StorageManager::WALFinishCheckpoint(lock_guard<mutex> &) {
 		// this is the common scenario if there are no concurrent writes happening while checkpointing
 		// in this case we can just remove the main WAL and re-instantiate it to empty
 		fs.TryRemoveFile(wal_path);
+		ResetWALEntriesCount();
 		wal = make_uniq<WriteAheadLog>(*this, wal_path);
 		return;
 	}
@@ -623,7 +620,7 @@ void SingleFileStorageCommitState::RevertCommit() {
 	}
 	if (wal.GetTotalWritten() > initial_written) {
 		// remove any entries written into the WAL by truncating it
-		wal.Truncatee(initial_wal_size);
+		wal.Truncate(initial_wal_size);
 	}
 	state = WALCommitState::TRUNCATED;
 }
