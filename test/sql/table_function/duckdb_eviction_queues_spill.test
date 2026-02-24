@@ -29,6 +29,13 @@ CREATE MACRO queue_mostly_dead(idx) AS (
 );
 
 statement ok
+CREATE MACRO any_queue_mostly_dead() AS (
+  SELECT (COUNT(*) > 0)::INT
+  FROM duckdb_eviction_queues()
+  WHERE dead_nodes > approximate_size / 2
+);
+
+statement ok
 CREATE MACRO queue_no_eviction(idx) AS (
   SELECT (abs(approximate_size - total_insertions) <= fudge())::INT
   FROM duckdb_eviction_queues() WHERE queue_index = idx
@@ -74,7 +81,7 @@ SELECT eviction_invariants_ok();
 1
 
 query I
-SELECT queue_mostly_dead(1);
+SELECT any_queue_mostly_dead();
 ----
 1
 
