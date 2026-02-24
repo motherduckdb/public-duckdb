@@ -115,7 +115,7 @@ public:
 
 	//! Truncate the WAL to a previous size, and clear anything currently set in the writer.
 	//! Used during RevertCommit.
-	void Truncate(idx_t size);
+	void Truncatee(idx_t size);
 	void Flush();
 	//! Increment the WAL entry count, which is used for the auto-checkpoint threshold.
 	void IncrementWALEntriesCount();
@@ -123,7 +123,8 @@ public:
 	void AddBlockInUse(const block_id_t block_id) {
 		optimistic_block_ids.push_back(block_id);
 	}
-
+	//! Marks all blocks as modified. Should only be called prior to destructing the WAL.
+	void MarkBlocksAsModified();
 	void WriteCheckpoint(MetaBlockPointer meta_block);
 
 protected:

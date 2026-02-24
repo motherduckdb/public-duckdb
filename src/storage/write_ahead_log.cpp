@@ -32,7 +32,7 @@ WriteAheadLog::WriteAheadLog(StorageManager &storage_manager, const string &wal_
     : storage_manager(storage_manager), wal_path(wal_path), init_state(init_state),
       checkpoint_iteration(checkpoint_iteration) {
 	storage_manager.SetWALSize(wal_size);
-	storage_manager.ResetWALEntriesCount();
+	storage_manager.ResetWAL();
 }
 
 WriteAheadLog::~WriteAheadLog() {
@@ -73,7 +73,7 @@ idx_t WriteAheadLog::GetTotalWritten() const {
 	return writer->GetTotalWritten();
 }
 
-void WriteAheadLog::Truncate(idx_t size) {
+void WriteAheadLog::Truncatee(idx_t size) {
 	if (init_state == WALInitState::NO_WAL) {
 		// no WAL to truncate
 		return;
@@ -549,6 +549,13 @@ void WriteAheadLog::Flush() {
 
 void WriteAheadLog::IncrementWALEntriesCount() {
 	storage_manager.IncrementWALEntriesCount();
+}
+
+void WriteAheadLog::MarkBlocksAsModified() {
+	auto &block_manager = storage_manager.GetBlockManager();
+	for (const auto block_id : optimistic_block_ids) {
+		block_manager.MarkBlockAsModified(block_id);
+	}
 }
 
 } // namespace duckdb
