@@ -542,12 +542,18 @@ shared_ptr<EncryptionUtil> DatabaseInstance::GetEncryptionUtil(bool read_only) {
 	}
 
 	if (!config.encryption_util) {
-		// No encryption_util, attempt to load httpfs extension IFF already available locally
-		ExtensionHelper::TryAutoLoadAvailableExtension(*this, "httpfs");
+		// No encryption_util, attempt to get a hold of httpfs
+		if (read_only) {
+			// load is attempted, but no install is performed
+			ExtensionHelper::TryAutoLoadAvailableExtension(*this, "httpfs");
+		} else {
+			// load is attempted, otherwise install+load
+			ExtensionHelper::TryAutoLoadExtension(*this, "httpfs");
+		}
 	}
 
 	if (config.encryption_util) {
-		// already available (potentially via httpfs loading
+		// already available (potentially via httpfs loading)
 		return config.encryption_util;
 	}
 
