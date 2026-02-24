@@ -1,7 +1,7 @@
 //===----------------------------------------------------------------------===//
 //                         DuckDB
 //
-// duckdb/planner/filter/selectivity_optional_filter
+// duckdb/planner/filter/selectivity_optional_filter.hpp
 //
 //
 //===----------------------------------------------------------------------===//
@@ -35,7 +35,7 @@ struct SelectivityOptionalFilterState final : public TableFilterState {
 		FilterStatus status;
 
 		//! For increasing pause if filter is not selective enough
-		idx_t n_row_groups_pause;
+		idx_t pause_multiplier;
 	};
 
 	unique_ptr<TableFilterState> child_state;
@@ -53,9 +53,9 @@ public:
 	static constexpr idx_t MIN_MAX_CHECK_N = 6;
 
 	static constexpr float BF_THRESHOLD = 0.5f;
-	static constexpr idx_t BF_CHECK_N = 3;
+	static constexpr idx_t BF_CHECK_N = 6;
 
-	static constexpr float PHJ_THRESHOLD = 0.5f;
+	static constexpr float PHJ_THRESHOLD = 0.3f;
 	static constexpr idx_t PHJ_CHECK_N = 6;
 
 	float selectivity_threshold;
