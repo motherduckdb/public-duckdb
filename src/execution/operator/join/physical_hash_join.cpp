@@ -908,9 +908,21 @@ bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, con
 		return false;
 	}
 
-	// bf is only supported for single key joins with equality condition
+	// bf is only supported for equality conditions
+	if (cmp != ExpressionType::COMPARE_EQUAL && cmp != ExpressionType::COMPARE_NOT_DISTINCT_FROM) {
+		return false;
+	}
+
+	// and only if there is exactly one equality condition
 	// as the Filter API only allows single-column filters so far
-	if (ht->conditions.size() != 1 || cmp != ExpressionType::COMPARE_EQUAL) {
+	idx_t equality_column_count = 0;
+	for (auto &cond : ht->conditions) {
+		const auto cond_cmp = cond.GetComparisonType();
+		if (cond_cmp == ExpressionType::COMPARE_EQUAL || cond_cmp == ExpressionType::COMPARE_NOT_DISTINCT_FROM) {
+			equality_column_count++;
+		}
+	}
+	if (equality_column_count != 1) {
 		return false;
 	}
 
@@ -923,9 +935,9 @@ bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, con
 		return false;
 	}
 
-	// if we have a build side without a filter, only build the bloom filter if it's small enough
-	static constexpr idx_t NON_FILTERING_BUILD_SIDE_THRESHOLD = 4194304;
-	if (!build_side_has_filter && ht->Count() > NON_FILTERING_BUILD_SIDE_THRESHOLD) {
+	// if we have a build side without a filter, only build the bloom filter if the ratio is small enough
+	static constexpr double NON_FILTERING_RATIO_THRESHOLD = 0.1;
+	if (!build_side_has_filter && build_to_probe_ratio > NON_FILTERING_RATIO_THRESHOLD) {
 		return false;
 	}
 
