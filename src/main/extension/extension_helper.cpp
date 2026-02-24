@@ -257,7 +257,6 @@ bool ExtensionHelper::TryAutoLoadAvailableExtension(DatabaseInstance &instance, 
 	if (instance.ExtensionIsLoaded(extension_name)) {
 		return true;
 	}
-	auto &dbconfig = DBConfig::GetConfig(instance);
 	try {
 		auto &fs = FileSystem::GetFileSystem(instance);
 		ExtensionHelper::LoadExternalExtension(instance, fs, extension_name);
