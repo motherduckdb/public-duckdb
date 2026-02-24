@@ -936,7 +936,7 @@ bool JoinFilterPushdownInfo::CanUseBloomFilter(const ClientContext &context, con
 	}
 
 	// if we have a build side without a filter, only build the bloom filter if the ratio is small enough
-	static constexpr double NON_FILTERING_RATIO_THRESHOLD = 0.1;
+	static constexpr double NON_FILTERING_RATIO_THRESHOLD = 0.25;
 	if (!build_side_has_filter && build_to_probe_ratio > NON_FILTERING_RATIO_THRESHOLD) {
 		return false;
 	}
