@@ -18,7 +18,6 @@ namespace duckdb {
 class HashJoinOperatorState;
 class HashJoinGlobalSinkState;
 class PhysicalHashJoin;
-class BloomFilter;
 
 struct PerfectHashJoinStats {
 	Value build_min;

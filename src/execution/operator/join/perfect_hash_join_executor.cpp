@@ -368,6 +368,7 @@ template <typename T, bool BUILD_SEL_VEC>
 void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(Vector &source, const idx_t &count,
                                                                 SelectionVector &probe_sel_vec, idx_t &probe_sel_count,
                                                                 SelectionVector *build_sel_vec) const {
+	D_ASSERT(probe_sel_count == 0);
 	const auto min_value = perfect_join_statistics.build_min.GetValueUnsafe<T>();
 	const auto max_value = perfect_join_statistics.build_max.GetValueUnsafe<T>();
 
@@ -377,7 +378,7 @@ void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(Vector &source, 
 	const auto &validity_mask = vector_data.validity;
 	// build selection vector for non-dense build
 	if (validity_mask.AllValid()) {
-		for (idx_t i = 0, sel_idx = 0; i < count; ++i) {
+		for (idx_t i = 0; i < count; ++i) {
 			// retrieve value from vector
 			const auto data_idx = vector_data.sel->get_index(i);
 			const auto &input_value = data[data_idx];
@@ -388,15 +389,14 @@ void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(Vector &source, 
 				// position check for matches in the build
 				if (bitmap_build_idx.RowIsValid(idx)) {
 					if (BUILD_SEL_VEC) {
-						build_sel_vec->set_index(sel_idx, idx);
+						build_sel_vec->set_index(probe_sel_count, idx);
 					}
-					probe_sel_vec.set_index(sel_idx++, i);
-					probe_sel_count++;
+					probe_sel_vec.set_index(probe_sel_count++, i);
 				}
 			}
 		}
 	} else {
-		for (idx_t i = 0, sel_idx = 0; i < count; ++i) {
+		for (idx_t i = 0; i < count; ++i) {
 			// retrieve value from vector
 			const auto data_idx = vector_data.sel->get_index(i);
 			if (!validity_mask.RowIsValidUnsafe(data_idx)) {
@@ -410,10 +410,9 @@ void PerfectHashJoinExecutor::TemplatedFillSelectionVectorProbe(Vector &source, 
 				// position check for matches in the build
 				if (bitmap_build_idx.RowIsValid(idx)) {
 					if (BUILD_SEL_VEC) {
-						build_sel_vec->set_index(sel_idx, idx);
+						build_sel_vec->set_index(probe_sel_count, idx);
 					}
-					probe_sel_vec.set_index(sel_idx++, i);
-					probe_sel_count++;
+					probe_sel_vec.set_index(probe_sel_count++, i);
 				}
 			}
 		}

@@ -34,7 +34,7 @@ struct SelectivityOptionalFilterState final : public TableFilterState {
 		//! Whether currently paused
 		FilterStatus status;
 
-		//! For exponential backoff
+		//! For increasing pause if filter is not selective enough
 		idx_t n_row_groups_pause;
 	};
 
