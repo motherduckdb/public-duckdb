@@ -613,11 +613,6 @@ void SingleFileStorageCommitState::RevertCommit() {
 	if (state != WALCommitState::IN_PROGRESS) {
 		return;
 	}
-	// We no longer use any of the blocks in this COMMIT.
-	auto &block_manager = wal.GetStorageManager().GetBlockManager();
-	for (const block_id_t block_id : block_ids_in_use) {
-		block_manager.MarkBlockAsModified(block_id);
-	}
 	if (wal.GetTotalWritten() > initial_written) {
 		// remove any entries written into the WAL by truncating it
 		wal.Truncate(initial_wal_size);
