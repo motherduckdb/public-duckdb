@@ -91,11 +91,15 @@ jobs:
       shell: bash
       run: ./build/relassert/duckdb -c "PRAGMA version;"
 
+    - name: Prepare relassert artifact
+      shell: bash
+      run: make relassert-artifact
+
     - name: Upload relassert build artifact
       uses: actions/upload-artifact@v4
       with:
         name: linux-debug-relassert-build
-        path: build/relassert
+        path: build/relassert-artifact.tar.gz
         if-no-files-found: error
 
  linux-debug-tests:
@@ -112,7 +116,14 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: linux-debug-relassert-build
-        path: build/relassert
+        path: build
+
+    - name: Extract relassert build artifact
+      shell: bash
+      run: |
+        rm -rf build/relassert
+        tar -xzf build/relassert-artifact.tar.gz -C build
+        ls -lh build/relassert/test/unittest
 
     - name: Set DUCKDB_INSTALL_LIB for ADBC tests
       shell: bash
