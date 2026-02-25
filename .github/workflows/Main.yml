@@ -137,6 +137,20 @@ jobs:
       run: |
         python3 scripts/run_tests_one_by_one.py build/relassert/test/unittest --tests-per-invocation 100 --timeout 300
 
+ regression:
+    uses: ./.github/workflows/Regression.yml
+    secrets: inherit
+    needs: linux-debug
+
+ extensions:
+    uses: ./.github/workflows/Extensions.yml
+    secrets: inherit
+    needs: linux-debug
+    with:
+      git_ref: ${{ github.sha }}
+      skip_tests: 'false'
+      run_all: 'true'
+
  linux-release:
     name: Linux Release (full suite)
     needs: linux-debug
