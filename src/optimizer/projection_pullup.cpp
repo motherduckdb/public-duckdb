@@ -85,8 +85,50 @@ void ProjectionPullup::Optimize(unique_ptr<LogicalOperator> &op) {
 		auto &comp_join = op->Cast<LogicalComparisonJoin>();
 		// FIXME: For SEMI, we should be able to recurse into the LHS sub-tree with no problem. For the RHS, do not
 		// remove projections directly below it.
-		if (comp_join.join_type == JoinType::MARK || comp_join.join_type == JoinType::SEMI) {
+		if (comp_join.join_type == JoinType::MARK) {
 			break; // bail
+		}
+		if (comp_join.join_type == JoinType::SEMI) {
+			// LHS: recurse normally, projections can be pulled up through a SEMI join's left side
+			parents.push_back(*op);
+			Optimize(op->children[0]);
+			PopParents(*op);
+
+			// RHS: insert a projection barrier, fresh optimizer
+			auto &rhs = op->children[1];
+			if (rhs->type != LogicalOperatorType::LOGICAL_PROJECTION) {
+				rhs->ResolveOperatorTypes();
+				auto proj_index = optimizer.binder.GenerateTableIndex();
+				auto rhs_bindings = rhs->GetColumnBindings();
+				const auto rhs_types = rhs->types;
+				const auto column_count = rhs_bindings.size();
+
+				vector<unique_ptr<Expression>> expressions;
+				expressions.reserve(column_count);
+				for (idx_t i = 0; i < column_count; i++) {
+					expressions.push_back(make_uniq<BoundColumnRefExpression>(rhs_types[i], rhs_bindings[i]));
+				}
+
+				ColumnBindingReplacer replacer;
+				for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
+					const auto &old_binding = rhs_bindings[col_idx];
+					replacer.replacement_bindings.emplace_back(old_binding, ColumnBinding(proj_index, col_idx));
+				}
+
+				auto new_projection = make_uniq<LogicalProjection>(proj_index, std::move(expressions));
+				if (rhs->has_estimated_cardinality) {
+					new_projection->SetEstimatedCardinality(rhs->estimated_cardinality);
+				}
+				new_projection->children.emplace_back(std::move(rhs));
+				rhs = std::move(new_projection);
+
+				replacer.stop_operator = rhs.get();
+				replacer.VisitOperator(root);
+			}
+
+			ProjectionPullup next(optimizer, root);
+			next.Optimize(rhs->children[0]);
+			return;
 		}
 
 		// We can pull through this operator, add it to the stack
