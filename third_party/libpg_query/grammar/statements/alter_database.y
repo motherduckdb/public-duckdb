@@ -4,9 +4,11 @@
  *
  *****************************************************************************/
 AlterDatabaseStmt:
-			ALTER DATABASE ColId SET ColId TO ColId
+			ALTER DATABASE ColId SET IDENT TO ColId
 				{
-					if (strcasecmp($5, "alias") != 0) {
+					char *lower = pstrdup($5);
+					for (char *p = lower; *p; p++) { *p = (*p >= 'A' && *p <= 'Z') ? *p + ('a' - 'A') : *p; }
+					if (strcmp(lower, "alias") != 0) {
 						ereport(ERROR,
 								(errcode(PG_ERRCODE_SYNTAX_ERROR),
 								 errmsg("expected SET ALIAS TO, got SET %s TO", $5),
@@ -19,9 +21,11 @@ AlterDatabaseStmt:
 					n->missing_ok = false;
 					$$ = (PGNode *)n;
 				}
-			| ALTER DATABASE IF_P EXISTS ColId SET ColId TO ColId
+			| ALTER DATABASE IF_P EXISTS ColId SET IDENT TO ColId
 				{
-					if (strcasecmp($7, "alias") != 0) {
+					char *lower = pstrdup($7);
+					for (char *p = lower; *p; p++) { *p = (*p >= 'A' && *p <= 'Z') ? *p + ('a' - 'A') : *p; }
+					if (strcmp(lower, "alias") != 0) {
 						ereport(ERROR,
 								(errcode(PG_ERRCODE_SYNTAX_ERROR),
 								 errmsg("expected SET ALIAS TO, got SET %s TO", $7),
