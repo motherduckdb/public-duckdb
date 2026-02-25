@@ -3,9 +3,6 @@
 # group: [optimizer]
 
 statement ok
-pragma disable_optimizer
-
-statement ok
 create table t1 as select range a from range(3, 10000);
 
 statement ok
@@ -23,14 +20,9 @@ create table tbl as select range a, mod(range,10) b from range(10000);
 statement ok
 PRAGMA explain_output = OPTIMIZED_ONLY;
 
-statement ok
-pragma enable_optimizer
-
 # These optimizers introduce projections. I disable them for now
 statement ok
 PRAGMA disabled_optimizers = 'column_lifetime,statistics_propagation'
-
-mode skip
 
 # Projection with expressions used in join condition. Cannot pull up
 query II
@@ -104,8 +96,6 @@ query II
 EXPLAIN SELECT * FROM range(5) INTERSECT SELECT * FROM range(5);
 ----
 logical_opt	<REGEX>:.*INTERSECT.*PROJECTION.*
-
-mode unskip
 
 #Test that the projection on the RHS of a semi join is not removed, but the plan is optimized deeper
 query II
