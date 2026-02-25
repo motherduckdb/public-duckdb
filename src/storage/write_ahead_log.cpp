@@ -36,10 +36,6 @@ WriteAheadLog::WriteAheadLog(StorageManager &storage_manager, const string &wal_
 }
 
 WriteAheadLog::~WriteAheadLog() {
-	auto &block_manager = storage_manager.GetBlockManager();
-	for (const auto block_id : blocks_in_use) {
-		block_manager.MarkBlockAsModified(block_id);
-	}
 }
 
 AttachedDatabase &WriteAheadLog::GetDatabase() {
@@ -553,6 +549,13 @@ void WriteAheadLog::Flush() {
 
 void WriteAheadLog::IncrementWALEntriesCount() {
 	storage_manager.IncrementWALEntriesCount();
+}
+
+void WriteAheadLog::MarkBlocksInUseAsModified() {
+	auto &block_manager = storage_manager.GetBlockManager();
+	for (const block_id_t block_id : blocks_in_use) {
+		block_manager.MarkBlockAsModified(block_id);
+	}
 }
 
 } // namespace duckdb

@@ -192,10 +192,6 @@ class SingleFileStorageManager : public StorageManager {
 public:
 	SingleFileStorageManager() = delete;
 	SingleFileStorageManager(AttachedDatabase &db, string path, AttachOptions &options);
-	~SingleFileStorageManager() override {
-		// The WAL destructor needs the storage manager to still be alive.
-		wal.reset();
-	}
 
 	//! The BlockManager to read from and write to blocks, both for the metadata and the data itself.
 	unique_ptr<BlockManager> block_manager;

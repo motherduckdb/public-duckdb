@@ -231,6 +231,9 @@ bool StorageManager::WALStartCheckpoint(MetaBlockPointer meta_block, CheckpointO
 	wal->WriteCheckpoint(meta_block);
 	wal->Flush();
 
+	// We no longer need to hold on to the WAL blocks here. If the checkpoint fails, we throw a fatal exception and
+	// enter an inconsistent state. If it succeeds, then this WAL is no longer relevant.
+	wal->MarkBlocksInUseAsModified();
 	// close the main WAL
 	wal.reset();
 

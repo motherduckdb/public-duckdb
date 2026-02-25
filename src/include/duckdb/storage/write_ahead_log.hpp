@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "storage_manager.hpp"
 #include "duckdb/catalog/catalog_entry/index_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/sequence_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_macro_catalog_entry.hpp"
@@ -127,6 +128,7 @@ public:
 	bool NewBlockInUse(const block_id_t block_id) const {
 		return blocks_in_use.count(block_id) == 0;
 	}
+	void MarkBlocksInUseAsModified();
 	void WriteCheckpoint(MetaBlockPointer meta_block);
 
 protected:
