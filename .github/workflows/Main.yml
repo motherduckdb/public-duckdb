@@ -91,6 +91,29 @@ jobs:
       shell: bash
       run: ./build/relassert/duckdb -c "PRAGMA version;"
 
+    - name: Upload relassert build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-debug-relassert-build
+        path: build/relassert
+        if-no-files-found: error
+
+ linux-debug-tests:
+    name: Linux Debug Tests
+    needs:
+      - prepare
+      - linux-debug
+    runs-on: ${{ needs.prepare.outputs.runner_linux_22_x64 }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download relassert build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: linux-debug-relassert-build
+        path: build/relassert
+
     - name: Set DUCKDB_INSTALL_LIB for ADBC tests
       shell: bash
       run: echo "DUCKDB_INSTALL_LIB=$(find `pwd` -name "libduck*.so" | head -n 1)" >> $GITHUB_ENV
