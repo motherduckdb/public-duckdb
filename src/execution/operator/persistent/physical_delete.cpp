@@ -122,8 +122,7 @@ SinkResultType PhysicalDelete::Sink(ExecutionContext &context, DataChunk &chunk,
 			lock_guard<mutex> guard(g_state.return_lock);
 			idx_t final_count = 0;
 			unique_ptr<SelectionVector> large_sel;
-			SelectionVector *write_sel =
-			    (count <= STANDARD_VECTOR_SIZE) ? &l_state.final_sel : nullptr;
+			SelectionVector *write_sel = (count <= STANDARD_VECTOR_SIZE) ? &l_state.final_sel : nullptr;
 			if (!write_sel) {
 				large_sel = make_uniq<SelectionVector>(chunk.size());
 				write_sel = large_sel.get();
