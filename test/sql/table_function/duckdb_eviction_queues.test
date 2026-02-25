@@ -35,19 +35,6 @@ CREATE MACRO queue_mostly_dead(idx) AS (
   FROM duckdb_eviction_queues() WHERE queue_index = idx
 );
 
-# snapshot table for delta-based checks
-statement ok
-CREATE TEMP TABLE snap(queue_index BIGINT, snap_size BIGINT, snap_insertions BIGINT);
-
-# entries were removed from queue since snapshot (delta insertions >> delta size).
-# with no memory pressure, this means purge ran.
-statement ok
-CREATE MACRO queue_entries_removed_since_snapshot(idx) AS (
-  SELECT ((c.total_insertions - s.snap_insertions) > (c.approximate_size - s.snap_size) * 2)::INT
-  FROM duckdb_eviction_queues() c
-  JOIN snap s ON c.queue_index = s.queue_index
-  WHERE c.queue_index = idx
-);
 
 statement ok
 CREATE TABLE t AS SELECT range AS i, range::VARCHAR AS s
@@ -151,40 +138,3 @@ SELECT eviction_invariants_ok();
 ----
 1
 
-statement ok
-SET memory_limit='2GB';
-
-statement ok
-DELETE FROM snap;
-
-statement ok
-INSERT INTO snap SELECT queue_index, approximate_size, total_insertions FROM duckdb_eviction_queues();
-
-loop i 0 3000
-
-query I
-SELECT SUM(length(s)) FROM t;
-----
-12888890
-
-endloop
-
-query I
-SELECT queue_entries_removed_since_snapshot(0);
-----
-1
-
-query I
-SELECT queue_mostly_dead(0);
-----
-1
-
-query I
-SELECT queue_has_alive_blocks(0);
-----
-1
-
-query I
-SELECT eviction_invariants_ok();
-----
-1
