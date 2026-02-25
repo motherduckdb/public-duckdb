@@ -3,7 +3,10 @@ runs:
   using: "composite"
   steps:
      - name: Setup Ccache
+       if: ${{ github.workflow != 'NightlyTests' }}
        uses: hendrikmuhs/ccache-action@main
        with:
          key: ${{ github.job }}
          save: ${{ github.repository != 'duckdb/duckdb' || contains('["refs/heads/main", "refs/heads/v1.4-andium", "refs/heads/v1.5-variegata"]', github.ref) }}
+         # Dump verbose ccache statistics report at end of CI job.
+         verbose: 2
