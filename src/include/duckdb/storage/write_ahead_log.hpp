@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "storage_manager.hpp"
 #include "duckdb/catalog/catalog_entry/index_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/sequence_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_macro_catalog_entry.hpp"
