@@ -1114,6 +1114,9 @@
 
 #line 1 "third_party/libpg_query/grammar/grammar.hpp"
 /*#define YYDEBUG 1*/
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#endif
 /*-------------------------------------------------------------------------
  *
  * gram.y
@@ -1405,7 +1408,7 @@ typedef union YYSTYPE
 	PGMergeAction mergeaction;
 }
 /* Line 193 of yacc.c.  */
-#line 1409 "third_party/libpg_query/grammar/grammar_out.cpp"
+#line 1412 "third_party/libpg_query/grammar/grammar_out.cpp"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -1430,7 +1433,7 @@ typedef struct YYLTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 1434 "third_party/libpg_query/grammar/grammar_out.cpp"
+#line 1437 "third_party/libpg_query/grammar/grammar_out.cpp"
 
 #ifdef short
 # undef short
@@ -2703,7 +2706,7 @@ static const yytype_uint16 yyrline[] =
       69,    75,    76,     9,    17,    29,    30,    34,    35,    36,
       41,    42,    43,    48,    52,    56,    60,    64,    68,    72,
       76,    80,    84,    88,    92,    97,   101,   105,   112,   113,
-     117,   118,   119,     7,    24,     7,    16,    28,    29,     2,
+     117,   118,   119,     7,    22,     7,    16,    28,    29,     2,
       10,    17,    24,    32,    40,    51,    52,    53,    57,    58,
       59,     2,     7,    31,    56,    86,    87,   114,   115,   116,
      117,   118,   119,   123,   124,   128,   133,   134,   135,   136,
@@ -23327,9 +23330,7 @@ yyreduce:
   case 273:
 #line 8 "third_party/libpg_query/grammar/statements/alter_database.y"
     {
-					char *lower = pstrdup((yyvsp[(5) - (7)].str));
-					for (char *p = lower; *p; p++) { *p = (*p >= 'A' && *p <= 'Z') ? *p + ('a' - 'A') : *p; }
-					if (strcmp(lower, "alias") != 0) {
+					if (strcasecmp((yyvsp[(5) - (7)].str), "alias") != 0) {
 						ereport(ERROR,
 								(errcode(PG_ERRCODE_SYNTAX_ERROR),
 								 errmsg("expected SET ALIAS TO, got SET %s TO", (yyvsp[(5) - (7)].str)),
@@ -23345,11 +23346,9 @@ yyreduce:
     break;
 
   case 274:
-#line 25 "third_party/libpg_query/grammar/statements/alter_database.y"
+#line 23 "third_party/libpg_query/grammar/statements/alter_database.y"
     {
-					char *lower = pstrdup((yyvsp[(7) - (9)].str));
-					for (char *p = lower; *p; p++) { *p = (*p >= 'A' && *p <= 'Z') ? *p + ('a' - 'A') : *p; }
-					if (strcmp(lower, "alias") != 0) {
+					if (strcasecmp((yyvsp[(7) - (9)].str), "alias") != 0) {
 						ereport(ERROR,
 								(errcode(PG_ERRCODE_SYNTAX_ERROR),
 								 errmsg("expected SET ALIAS TO, got SET %s TO", (yyvsp[(7) - (9)].str)),
@@ -32993,7 +32992,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 32997 "third_party/libpg_query/grammar/grammar_out.cpp"
+#line 32996 "third_party/libpg_query/grammar/grammar_out.cpp"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);

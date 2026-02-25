@@ -6,9 +6,7 @@
 AlterDatabaseStmt:
 			ALTER DATABASE ColId SET IDENT TO ColId
 				{
-					char *lower = pstrdup($5);
-					for (char *p = lower; *p; p++) { *p = (*p >= 'A' && *p <= 'Z') ? *p + ('a' - 'A') : *p; }
-					if (strcmp(lower, "alias") != 0) {
+					if (strcasecmp($5, "alias") != 0) {
 						ereport(ERROR,
 								(errcode(PG_ERRCODE_SYNTAX_ERROR),
 								 errmsg("expected SET ALIAS TO, got SET %s TO", $5),
@@ -23,9 +21,7 @@ AlterDatabaseStmt:
 				}
 			| ALTER DATABASE IF_P EXISTS ColId SET IDENT TO ColId
 				{
-					char *lower = pstrdup($7);
-					for (char *p = lower; *p; p++) { *p = (*p >= 'A' && *p <= 'Z') ? *p + ('a' - 'A') : *p; }
-					if (strcmp(lower, "alias") != 0) {
+					if (strcasecmp($7, "alias") != 0) {
 						ereport(ERROR,
 								(errcode(PG_ERRCODE_SYNTAX_ERROR),
 								 errmsg("expected SET ALIAS TO, got SET %s TO", $7),
