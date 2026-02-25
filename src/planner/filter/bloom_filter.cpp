@@ -1,6 +1,7 @@
 #include "duckdb/planner/filter/bloom_filter.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/common/operator/subtract.hpp"
+#include "duckdb/common/operator/cast_operators.hpp"
 
 namespace duckdb {
 
@@ -147,11 +148,11 @@ static FilterPropagateResult TemplatedCheckStatistics(const BloomFilter &bf, con
 		return FilterPropagateResult::NO_PRUNING_POSSIBLE; // Invalid stats
 	}
 	T range_typed;
-	if (!TrySubtractOperator::Operation(max, min, range_typed) ||
-	    NumericCast<idx_t>(range_typed) >= DEFAULT_STANDARD_VECTOR_SIZE) {
+	idx_t range;
+	if (!TrySubtractOperator::Operation(max, min, range_typed) || !TryCast::Operation(range_typed, range) ||
+	    range >= DEFAULT_STANDARD_VECTOR_SIZE) {
 		return FilterPropagateResult::NO_PRUNING_POSSIBLE; // Overflow or too wide of a range
 	}
-	const auto range = NumericCast<idx_t>(range_typed);
 
 	T val = min;
 	idx_t hits = 0;

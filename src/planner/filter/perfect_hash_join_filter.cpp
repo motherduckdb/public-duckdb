@@ -3,6 +3,7 @@
 #include "duckdb/execution/operator/join/perfect_hash_join_executor.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/common/operator/subtract.hpp"
+#include "duckdb/common/operator/cast_operators.hpp"
 
 namespace duckdb {
 
@@ -25,13 +26,14 @@ static FilterPropagateResult TemplatedCheckStatistics(const PerfectHashJoinExecu
 	}
 
 	T range_typed;
-	if (!TrySubtractOperator::Operation(max, min, range_typed) ||
-	    NumericCast<idx_t>(range_typed) >= DEFAULT_STANDARD_VECTOR_SIZE) {
+	idx_t range;
+	if (!TrySubtractOperator::Operation(max, min, range_typed) || !TryCast::Operation(range_typed, range) ||
+	    range >= DEFAULT_STANDARD_VECTOR_SIZE) {
 		return FilterPropagateResult::NO_PRUNING_POSSIBLE; // Overflow or too wide of a range
 	}
 
-	Vector range(stats.GetType());
-	auto range_data = FlatVector::GetData<T>(range);
+	Vector range_vec(stats.GetType());
+	auto range_data = FlatVector::GetData<T>(range_vec);
 	T val = min;
 	for (; val < max; val += 1) {
 		*range_data++ = val;
@@ -41,7 +43,8 @@ static FilterPropagateResult TemplatedCheckStatistics(const PerfectHashJoinExecu
 	const auto total_count = NumericCast<idx_t>(range_typed) + 1;
 	idx_t approved_tuple_count = 0;
 	SelectionVector probe_sel(total_count);
-	perfect_join_executor.FillSelectionVectorSwitchProbe(range, total_count, probe_sel, approved_tuple_count, nullptr);
+	perfect_join_executor.FillSelectionVectorSwitchProbe(range_vec, total_count, probe_sel, approved_tuple_count,
+	                                                     nullptr);
 
 	if (approved_tuple_count == 0) {
 		return FilterPropagateResult::FILTER_ALWAYS_FALSE;
