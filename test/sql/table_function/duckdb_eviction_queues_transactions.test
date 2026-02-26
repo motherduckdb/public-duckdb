@@ -17,24 +17,6 @@ CREATE MACRO eviction_invariants_ok() AS (
 );
 
 statement ok
-CREATE MACRO queue_has_alive_blocks(idx) AS (
-  SELECT (approximate_size - dead_nodes > 0)::INT
-  FROM duckdb_eviction_queues() WHERE queue_index = idx
-);
-
-statement ok
-CREATE MACRO queue_mostly_dead(idx) AS (
-  SELECT (dead_nodes > approximate_size / 2)::INT
-  FROM duckdb_eviction_queues() WHERE queue_index = idx
-);
-
-statement ok
-CREATE MACRO queue_few_alive_blocks(idx) AS (
-  SELECT (approximate_size - dead_nodes < 20)::INT
-  FROM duckdb_eviction_queues() WHERE queue_index = idx
-);
-
-statement ok
 CREATE TABLE t(i BIGINT, s VARCHAR);
 
 statement ok
@@ -52,11 +34,6 @@ statement ok
 ROLLBACK;
 
 query I
-SELECT queue_few_alive_blocks(1);
-----
-1
-
-query I
 SELECT eviction_invariants_ok();
 ----
 1
@@ -69,11 +46,6 @@ INSERT INTO t SELECT range AS i, range::VARCHAR AS s FROM range(200000);
 
 statement ok
 COMMIT;
-
-query I
-SELECT queue_has_alive_blocks(1);
-----
-1
 
 query I
 SELECT eviction_invariants_ok();

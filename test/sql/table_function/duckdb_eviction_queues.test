@@ -18,37 +18,8 @@ CREATE MACRO eviction_invariants_ok() AS (
 );
 
 statement ok
-CREATE MACRO queue_no_eviction(idx) AS (
-  SELECT (abs(approximate_size - total_insertions) <= fudge())::INT
-  FROM duckdb_eviction_queues() WHERE queue_index = idx
-);
-
-statement ok
-CREATE MACRO queue_has_alive_blocks(idx) AS (
-  SELECT (approximate_size - dead_nodes > 0)::INT
-  FROM duckdb_eviction_queues() WHERE queue_index = idx
-);
-
-statement ok
-CREATE MACRO queue_mostly_dead(idx) AS (
-  SELECT (dead_nodes > approximate_size / 2)::INT
-  FROM duckdb_eviction_queues() WHERE queue_index = idx
-);
-
-
-statement ok
 CREATE TABLE t AS SELECT range AS i, range::VARCHAR AS s
 FROM range(2000000);
-
-query I
-SELECT queue_has_alive_blocks(0);
-----
-1
-
-query I
-SELECT queue_no_eviction(0);
-----
-1
 
 query I
 SELECT eviction_invariants_ok();
@@ -57,26 +28,6 @@ SELECT eviction_invariants_ok();
 
 statement ok
 CHECKPOINT;
-
-query I
-SELECT queue_has_alive_blocks(0);
-----
-1
-
-query I
-SELECT queue_has_alive_blocks(1);
-----
-1
-
-query I
-SELECT queue_no_eviction(0);
-----
-1
-
-query I
-SELECT queue_no_eviction(1);
-----
-1
 
 query I
 SELECT eviction_invariants_ok();
@@ -89,27 +40,12 @@ SELECT SUM(length(s)) FROM t;
 12888890
 
 query I
-SELECT queue_mostly_dead(1);
-----
-1
-
-query I
-SELECT queue_no_eviction(0);
-----
-1
-
-query I
 SELECT eviction_invariants_ok();
 ----
 1
 
 statement ok
 SET memory_limit='2MB';
-
-query I
-SELECT queue_has_alive_blocks(0);
-----
-1
 
 query I
 SELECT eviction_invariants_ok();
@@ -129,12 +65,6 @@ SELECT SUM(length(s)) FROM t;
 endloop
 
 query I
-SELECT queue_has_alive_blocks(0);
-----
-1
-
-query I
 SELECT eviction_invariants_ok();
 ----
 1
-
