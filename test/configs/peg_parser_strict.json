@@ -85,7 +85,8 @@
         "test/sql/function/string/test_subscript.test",
         "test/sql/catalog/table/create_table_parameters.test",
         "test/sql/binder/test_string_alias.test",
-        "test/optimizer/joins/lateral_cross_join.test"
+        "test/optimizer/joins/lateral_cross_join.test",
+        "test/sql/subquery/scalar/test_scalar_subquery_cte.test"
       ]
     },
     {
