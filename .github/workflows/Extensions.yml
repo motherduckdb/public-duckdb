@@ -159,19 +159,30 @@ jobs:
     needs:
       - load-extension-configs
       - vars
-    uses: ./.github/workflows/_extension_distribution.yml
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
+      # We piggy-back extension-template to build the extensions in extension_config
+      override_repository: duckdb/extension-template
+      override_ref: main
+      upload_all_extensions: true
+      extension_name: main-extensions
       artifact_prefix: main-extensions
       # NOTE: on PRs we exclude some archs to speed things up
       reduced_ci_mode: ${{ needs.load-extension-configs.outputs.reduced_ci_mode }}
+      set_caller_as_duckdb: true
+      duckdb_version: ${{ inputs.git_ref }}
+      override_ci_tools_repository: duckdb/extension-ci-tools
+      ci_tools_version: main
       exclude_archs: ${{ needs.load-extension-configs.outputs.main_extensions_exclude_archs }}
       opt_in_archs: ${{ needs.load-extension-configs.outputs.main_extensions_opt_in_archs }}
       extension_config: ${{ needs.load-extension-configs.outputs.main_extensions_config }}
       extra_toolchains: 'unixodbc'
-      override_tag: ${{ inputs.override_git_describe }}
-      override_duckdb_version: ${{ inputs.git_ref }}
+      use_merged_vcpkg_manifest: '1'
+      duckdb_tag: ${{ inputs.override_git_describe }}
       skip_tests: ${{ inputs.skip_tests == 'true' && true || false }}
       save_cache: ${{ needs.vars.outputs.BRANCHES_TO_BE_CACHED == '' || contains(needs.vars.outputs.BRANCHES_TO_BE_CACHED, github.ref) }}
+      extensions_test_selection: 'complete'
+      extra_extension_config: ${{ needs.load-extension-configs.outputs.main_extensions_config }}
 
   # Build the extensions from .github/config/rust_based_extensions.cmake
   rust-based-extensions:
@@ -179,18 +190,28 @@ jobs:
     needs:
       - load-extension-configs
       - vars
-    uses: ./.github/workflows/_extension_distribution.yml
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
       # NOTE: on PRs we exclude some archs to speed things up
       reduced_ci_mode: ${{ needs.load-extension-configs.outputs.reduced_ci_mode }}
+      override_repository: duckdb/extension-template
+      override_ref: main
+      upload_all_extensions: true
+      extension_name: rust-based-extensions
+      set_caller_as_duckdb: true
+      duckdb_version: ${{ inputs.git_ref }}
+      override_ci_tools_repository: duckdb/extension-ci-tools
+      ci_tools_version: main
       exclude_archs: ${{ needs.load-extension-configs.outputs.rust_based_extensions_exclude_archs }}
       artifact_prefix: rust-based-extensions
       extension_config: ${{ needs.load-extension-configs.outputs.rust_based_extensions_config }}
       extra_toolchains: 'rust'
-      override_tag: ${{ inputs.override_git_describe }}
-      override_duckdb_version: ${{ inputs.git_ref }}
+      use_merged_vcpkg_manifest: '1'
+      duckdb_tag: ${{ inputs.override_git_describe }}
       skip_tests: ${{ inputs.skip_tests == 'true' && true || false }}
       save_cache: ${{ needs.vars.outputs.BRANCHES_TO_BE_CACHED == '' || contains(needs.vars.outputs.BRANCHES_TO_BE_CACHED, github.ref) }}
+      extensions_test_selection: 'complete'
+      extra_extension_config: ${{ needs.load-extension-configs.outputs.rust_based_extensions_config }}
 
   # Build the extensions from .github/config/external_extensions.cmake
   external-extensions:
@@ -198,18 +219,28 @@ jobs:
     needs:
       - load-extension-configs
       - vars
-    uses: ./.github/workflows/_extension_distribution.yml
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
       # NOTE: on PRs we exclude some archs to speed things up
       reduced_ci_mode: ${{ needs.load-extension-configs.outputs.reduced_ci_mode }}
+      override_repository: duckdb/extension-template
+      override_ref: main
+      upload_all_extensions: true
+      extension_name: external-extensions
+      set_caller_as_duckdb: true
+      duckdb_version: ${{ inputs.git_ref }}
+      override_ci_tools_repository: duckdb/extension-ci-tools
+      ci_tools_version: main
       exclude_archs: ${{ needs.load-extension-configs.outputs.external_extensions_exclude_archs }}
       artifact_prefix: external-extensions
       extension_config: ${{ needs.load-extension-configs.outputs.external_extensions_config }}
       extra_toolchains: 'rust'
-      override_tag: ${{ inputs.override_git_describe }}
-      override_duckdb_version: ${{ inputs.git_ref }}
+      use_merged_vcpkg_manifest: '1'
+      duckdb_tag: ${{ inputs.override_git_describe }}
       skip_tests: ${{ inputs.skip_tests == 'true' && true || false }}
       save_cache: ${{ needs.vars.outputs.BRANCHES_TO_BE_CACHED == '' || contains(needs.vars.outputs.BRANCHES_TO_BE_CACHED, github.ref) }}
+      extensions_test_selection: 'complete'
+      extra_extension_config: ${{ needs.load-extension-configs.outputs.external_extensions_config }}
 
   # Merge all extensions into a single, versioned repository
   create-extension-repository:
