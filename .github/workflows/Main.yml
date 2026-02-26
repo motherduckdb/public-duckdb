@@ -44,7 +44,7 @@ env:
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
- check-draft:
+ prepare:
     # We run all other jobs on PRs only if they are not draft PR
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
@@ -55,7 +55,7 @@ jobs:
  linux-debug:
     name: Linux Debug
     # This tests release build while enabling slow verifiers (masked by #ifdef DEBUG) and sanitizers
-    needs: check-draft
+    needs: prepare
     runs-on: ubuntu-22.04
     env:
       CC: gcc-10
@@ -91,6 +91,40 @@ jobs:
       shell: bash
       run: ./build/relassert/duckdb -c "PRAGMA version;"
 
+    - name: Prepare relassert artifact
+      shell: bash
+      run: make relassert-artifact
+
+    - name: Upload relassert build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-debug-relassert-build
+        path: build/relassert-artifact.tar.gz
+        if-no-files-found: error
+
+ linux-debug-tests:
+    name: Linux Debug Tests
+    needs:
+      - prepare
+      - linux-debug
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download relassert build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: linux-debug-relassert-build
+        path: build
+
+    - name: Extract relassert build artifact
+      shell: bash
+      run: |
+        rm -rf build/relassert
+        tar -xzf build/relassert-artifact.tar.gz -C build
+        ls -lh build/relassert/test/unittest
+
     - name: Set DUCKDB_INSTALL_LIB for ADBC tests
       shell: bash
       run: echo "DUCKDB_INSTALL_LIB=$(find `pwd` -name "libduck*.so" | head -n 1)" >> $GITHUB_ENV
@@ -102,6 +136,20 @@ jobs:
       shell: bash
       run: |
         python3 scripts/run_tests_one_by_one.py build/relassert/test/unittest --tests-per-invocation 100 --timeout 300
+
+ regression:
+    uses: ./.github/workflows/Regression.yml
+    secrets: inherit
+    needs: linux-debug
+
+ extensions:
+    uses: ./.github/workflows/Extensions.yml
+    secrets: inherit
+    needs: linux-debug
+    with:
+      git_ref: ${{ github.sha }}
+      skip_tests: 'false'
+      run_all: 'true'
 
  linux-release:
     name: Linux Release (full suite)
