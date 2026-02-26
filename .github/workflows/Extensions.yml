@@ -188,7 +188,6 @@ jobs:
       override_ref: main
       upload_all_extensions: true
       extension_name: ${{ matrix.artifact_prefix }}
-      artifact_prefix: ${{ matrix.artifact_prefix }}
       # NOTE: on PRs we exclude some archs to speed things up
       reduced_ci_mode: ${{ needs.load-extension-configs.outputs.reduced_ci_mode }}
       set_caller_as_duckdb: true
@@ -197,7 +196,6 @@ jobs:
       ci_tools_version: main
       exclude_archs: ${{ matrix.exclude_archs }}
       opt_in_archs: ${{ matrix.opt_in_archs }}
-      extension_config: ${{ matrix.extension_config }}
       extra_toolchains: ${{ matrix.extra_toolchains }}
       use_merged_vcpkg_manifest: '1'
       duckdb_tag: ${{ inputs.override_git_describe }}

@@ -86,7 +86,6 @@ jobs:
       override_ref: main
       upload_all_extensions: true
       extension_name: extensions
-      artifact_prefix: extensions
       reduced_ci_mode: auto
       set_caller_as_duckdb: true
       duckdb_version: ${{ inputs.duckdb_ref }}
