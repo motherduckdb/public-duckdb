@@ -44,7 +44,7 @@ env:
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
- check-draft:
+ prepare:
     # We run all other jobs on PRs only if they are not draft PR
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
@@ -55,7 +55,7 @@ jobs:
  linux-debug:
     name: Linux Debug
     # This tests release build while enabling slow verifiers (masked by #ifdef DEBUG) and sanitizers
-    needs: check-draft
+    needs: prepare
     runs-on: ubuntu-22.04
     env:
       CC: gcc-10
@@ -107,7 +107,7 @@ jobs:
     needs:
       - prepare
       - linux-debug
-    runs-on: ${{ needs.prepare.outputs.runner_linux_22_x64 }}
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v4
