@@ -1,15 +1,13 @@
 #include "duckdb/execution/operator/persistent/physical_delete.hpp"
 
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
-#include "duckdb/common/atomic.hpp"
+#include "duckdb/common/mutex.hpp"
 #include "duckdb/common/types/column/column_data_collection.hpp"
 #include "duckdb/common/vector_size.hpp"
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/execution/index/bound_index.hpp"
 #include "duckdb/storage/data_table.hpp"
 #include "duckdb/storage/table/delete_state.hpp"
-#include "duckdb/storage/table/scan_state.hpp"
-#include "duckdb/transaction/duck_transaction.hpp"
 
 namespace duckdb {
 
@@ -37,15 +35,15 @@ public:
 		}
 	}
 
-	//! Protects return_collection Combine() into the global collection
-	mutex return_lock;
+	//! Protects deleted_row_ids and return_collection Combine()
+	annotated_mutex return_lock;
 	//! Conservatively protect delete-index maintenance (unique indexes)
-	mutex index_lock;
+	annotated_mutex index_lock;
 
 	atomic<idx_t> deleted_count;
 	ColumnDataCollection return_collection;
-	//! Global set of deleted row_ids (merged from per-thread sets in Combine())
-	unordered_set<row_t> deleted_row_ids;
+	//! Global set of deleted row_ids (for cross-thread dedup in Sink; only accessed under return_lock)
+	unordered_set<row_t> deleted_row_ids DUCKDB_GUARDED_BY(return_lock);
 	LocalAppendState delete_index_append_state;
 	bool has_unique_indexes;
 };
@@ -119,7 +117,7 @@ SinkResultType PhysicalDelete::Sink(ExecutionContext &context, DataChunk &chunk,
 			return SinkResultType::NEED_MORE_INPUT;
 		}
 		{
-			lock_guard<mutex> guard(g_state.return_lock);
+			annotated_lock_guard<annotated_mutex> guard(g_state.return_lock);
 			idx_t final_count = 0;
 			unique_ptr<SelectionVector> large_sel;
 			SelectionVector *write_sel = (count <= STANDARD_VECTOR_SIZE) ? &l_state.final_sel : nullptr;
@@ -177,7 +175,7 @@ SinkResultType PhysicalDelete::Sink(ExecutionContext &context, DataChunk &chunk,
 	// Append the deleted row IDs to the delete indexes.
 	// If we only delete local row IDs, then the delete_chunk is empty.
 	if (g_state.has_unique_indexes && l_state.delete_chunk.size() != 0) {
-		lock_guard<mutex> index_guard(g_state.index_lock);
+		annotated_lock_guard<annotated_mutex> index_guard(g_state.index_lock);
 		auto &local_storage = LocalStorage::Get(context.client, table.db);
 		auto storage = local_storage.GetStorage(table);
 		IndexAppendInfo index_append_info(IndexAppendMode::IGNORE_DUPLICATES, nullptr);
@@ -216,7 +214,7 @@ SinkCombineResultType PhysicalDelete::Combine(ExecutionContext &, OperatorSinkCo
 		return SinkCombineResultType::FINISHED;
 	}
 	// Merge per-thread return_collection into global (deleted_row_ids is only needed during Sink)
-	lock_guard<mutex> guard(g_state.return_lock);
+	annotated_lock_guard<annotated_mutex> guard(g_state.return_lock);
 	g_state.return_collection.Combine(*l_state.return_collection);
 	return SinkCombineResultType::FINISHED;
 }
