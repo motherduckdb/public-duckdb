@@ -125,7 +125,7 @@ SELECT finalize(regr_sxy(d, d+1) EXPORT_STATE) FROM dummy;
 83325.0
 
 # Regression aggregates: grouped direct vs EXPORT_STATE + finalize
-query IIIIIIIIIII nosort
+query IIIIIIIIII nosort
 SELECT g, regr_count(d, d+1), regr_avgx(d, d+1), regr_avgy(d, d+1), regr_slope(d, d+1), regr_intercept(d, d+1), regr_r2(d, d+1), regr_sxx(d, d+1), regr_syy(d, d+1), regr_sxy(d, d+1) FROM dummy GROUP BY g ORDER BY g;
 ----
 0	10	46.0	45.0	1.0	-1.0	1.0	8250.0	8250.0	8250.0
@@ -139,7 +139,7 @@ SELECT g, regr_count(d, d+1), regr_avgx(d, d+1), regr_avgy(d, d+1), regr_slope(d
 8	10	54.0	53.0	1.0	-1.0	1.0	8250.0	8250.0	8250.0
 9	10	55.0	54.0	1.0	-1.0	1.0	8250.0	8250.0	8250.0
 
-query IIIIIIIIIII nosort
+query IIIIIIIIII nosort
 SELECT g, finalize(regr_count(d, d+1) EXPORT_STATE), finalize(regr_avgx(d, d+1) EXPORT_STATE), finalize(regr_avgy(d, d+1) EXPORT_STATE), finalize(regr_slope(d, d+1) EXPORT_STATE), finalize(regr_intercept(d, d+1) EXPORT_STATE), finalize(regr_r2(d, d+1) EXPORT_STATE), finalize(regr_sxx(d, d+1) EXPORT_STATE), finalize(regr_syy(d, d+1) EXPORT_STATE), finalize(regr_sxy(d, d+1) EXPORT_STATE) FROM dummy GROUP BY g ORDER BY g;
 ----
 0	10	46.0	45.0	1.0	-1.0	1.0	8250.0	8250.0	8250.0
