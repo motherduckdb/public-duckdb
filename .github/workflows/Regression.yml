@@ -12,7 +12,7 @@ on:
   repository_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
+  group: regression-${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
   cancel-in-progress: true
 
 env:
@@ -329,4 +329,3 @@ jobs:
         shell: bash
         run: |
           python scripts/plan_cost_runner.py --old duckdb/build/release/duckdb --new build/release/duckdb --dir=benchmark/tpch_plan_cost
-
