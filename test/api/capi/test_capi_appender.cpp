@@ -730,7 +730,10 @@ TEST_CASE("Test append duckdb_value values in C API", "[capi]") {
 	             // lt34 any - not a valid type in SQL
 	             "lt35 bignum,"  // no duckdb_create_bignum (yet)
 	             "lt36 integer," // for sqlnull
-	             "lt37 time_ns,"
+	             // lt37 string_literal - not a valid type in SQL
+	             // lt38 integer_literal - not a valid type in SQL
+	             "lt39 time_ns,"
+	             "lt40 geometry,"
 	             ")");
 	duckdb_appender appender;
 
@@ -959,6 +962,20 @@ TEST_CASE("Test append duckdb_value values in C API", "[capi]") {
 	REQUIRE(duckdb_append_value(appender, time_ns_value) == DuckDBSuccess);
 	duckdb_destroy_value(&time_ns_value);
 
+	const uint8_t geometry_blob_data[] {
+	    // WKB for POINT EMPTY
+	    0x01,                                           // byte order: 1 (NDR = little endian)
+	    0x01, 0x00, 0x00, 0x00,                         // type: 1 (Point)
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F, // x: NaN
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F  // y: NaN
+	};
+	idx_t geometry_blob_size = 21;
+	auto geometry_blob_value = duckdb_create_blob(geometry_blob_data, geometry_blob_size);
+	status = duckdb_append_value(appender, geometry_blob_value);
+	// REQUIRE(status == DuckDBSuccess);
+	REQUIRE(duckdb_appender_error(appender) == nullptr);
+	duckdb_destroy_value(&geometry_blob_value);
+
 	REQUIRE(duckdb_appender_end_row(appender) == DuckDBSuccess);
 
 	REQUIRE(duckdb_appender_flush(appender) == DuckDBSuccess);
@@ -1044,6 +1061,13 @@ TEST_CASE("Test append duckdb_value values in C API", "[capi]") {
 	REQUIRE(duckdb_validity_row_is_valid(chunk->GetValidity(34), 0) == false); // sqlnull
 
 	REQUIRE(reinterpret_cast<duckdb_time_ns *>(chunk->GetData(35))[0].nanos == time_ns.nanos);
+
+	REQUIRE_THAT(reinterpret_cast<duckdb_string_t *>(chunk->GetData(36))[0],
+	             Catch::Predicate<duckdb_string_t>([&](const duckdb_string_t &input) {
+		             return !memcmp(duckdb_string_t_data(const_cast<duckdb_string_t *>(&input)), geometry_blob_data,
+		                            geometry_blob_size) &&
+		                    duckdb_string_t_length(input) == geometry_blob_size;
+	             }));
 
 	tester.Cleanup();
 }
