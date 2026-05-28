@@ -1,0 +1,10 @@
+mkdir -p ./build/debug && \
+cd build/debug && \
+cmake -G "Ninja" -DFORCE_COLORED_OUTPUT=1       -DCRASH_ON_ASSERT=1 -DLOCAL_EXTENSION_REPO=""  -DOVERRIDE_GIT_DESCRIBE="" -DDUCKDB_EXPLICIT_VERSION=""  -DDEBUG_MOVE=1 -DCMAKE_BUILD_TYPE=Debug ../.. && \
+cmake --build . --config Debug
+-- Found Python3: /usr/local/bin/python3 (found version "3.12.13") found components: Interpreter
+CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage
+CMake Error: CMAKE_CXX_COMPILER not set, after EnableLanguage
+-- Configuring incomplete, errors occurred!
+make: *** [Makefile:347: debug] Error 1
