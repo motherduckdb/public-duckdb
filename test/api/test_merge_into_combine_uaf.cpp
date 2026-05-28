@@ -61,7 +61,7 @@ using namespace duckdb;
 
 namespace {
 
-constexpr idx_t TARGET_ROWS = 1'500'000;     // > 765k crash threshold
+constexpr idx_t TARGET_ROWS = 1500000;     // > 765k crash threshold
 constexpr idx_t INSERTER_THREADS = 4;        // parallel optimistic-write path
 constexpr idx_t ITERATIONS_PER_INSERTER = 3; // multiple slabs / row groups
 
@@ -70,7 +70,7 @@ void Inserter(DuckDB *db, idx_t worker_id, std::atomic<bool> *stop) {
 	(void)con.Query("PRAGMA threads=4");
 	for (idx_t it = 0; it < ITERATIONS_PER_INSERTER && !stop->load(); it++) {
 		// Overlapping ranges across workers, so the IGNORE path is exercised.
-		idx_t start = (worker_id * 250'000) % TARGET_ROWS;
+		idx_t start = (worker_id * 250000) % TARGET_ROWS;
 		idx_t end = start + TARGET_ROWS;
 		auto sql = "INSERT OR IGNORE INTO t SELECT i, "
 		           "i || ' payload string for slab reuse pattern in OptimisticDataWriter', "
