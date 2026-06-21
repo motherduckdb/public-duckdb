@@ -1,0 +1,57 @@
+No ASAN trigger captured in this run.
+
+Reason: the task harness for this run has no C++ compiler installed (no
+g++, no clang++, no ninja; only cmake + make + python3). apt-get is not
+available without root, and `sudo` is not present. Building duckdb with
+`BUILD_UNITTEST=1 ENABLE_SANITIZER=1 CRASH_ON_ASSERT=1 make debug -j4`
+fails at the cmake configure step:
+
+    CMake Error: CMake was unable to find a build program corresponding
+                 to "Ninja".  CMAKE_MAKE_PROGRAM is not set.
+    CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage
+    CMake Error: CMAKE_CXX_COMPILER not set, after EnableLanguage
+
+(see tools/repro/build.log for the full output)
+
+For reference, the EXPECTED ASAN output that this reproducer is intended
+to surface (taken from the gdb post-mortem of the internal-fork crash @
+commit f8c4bc0e, translated into the form ASAN typically prints) would
+look approximately like:
+
+    =================================================================
+    ==NNNNN==ERROR: AddressSanitizer: heap-use-after-free on address
+        0xXXXXXXXXXXXX at pc 0xYYYYYYYYYYYY bp 0x... sp 0x...
+    READ of size 8 at 0xXXXXXXXXXXXX thread T<n>
+        #0 ColumnData::Append   (...)
+        #1 RowGroup::Append     (...)
+        #2 RowGroupCollection::Append (...)
+        #3 LocalStorage::Append (...)
+        #4 DataTable::LocalAppend (...)
+        #5 PhysicalInsert::Combine (...)
+        #6 MergeIntoGlobalState::Combine (...)
+        #7 PhysicalMergeInto::Combine (...)
+        #8 PipelineFinishEvent / TaskExecutor::Combine ...
+
+    0xXXXXXXXXXXXX is located NN bytes inside of MMMM-byte region freed
+    by thread T<m> here:
+        #0 operator delete(...)
+        #1 ~OptimisticWriteCollection / ~RowGroupCollection / ~RowGroup
+                                                           / ~ColumnData
+        #2 RowGroupCollection::MergeStorage (...)
+        #3 LocalStorage::LocalMerge (...)
+        #4 PhysicalInsert::Combine  (>= row_group_size branch)  (...)
+        #5 MergeIntoGlobalState::Combine (...)
+        #6 PhysicalMergeInto::Combine (...)
+
+    previously allocated by thread T<n> here:
+        #0 operator new(...)
+        #1 OptimisticDataWriter::CreateCollection (...)
+        #2 PhysicalInsert::Sink (parallel branch)            (...)
+        #3 PhysicalMergeInto::Sink (...)
+
+(The freed-by stack is the high-value piece — it tells us exactly where
+the lifetime ended. The hypothesis section in REPRODUCER.md works
+backward from the gdb evidence to predict that the freed-by stack
+should be MergeStorage / LocalMerge in the >= row_group_size combine
+branch, since that is where the per-thread OptimisticWriteCollection's
+row groups change ownership.)
